@@ -253,8 +253,13 @@ function setupEvents() {
 
   btnAnalyze.addEventListener('click', async () => {
     btnAnalyze.disabled = true;
+    const originalText = btnAnalyze.textContent;
     btnAnalyze.textContent = 'Analyzing...';
-    await runAnalysis();
+    try {
+      await runAnalysis();
+    } catch(err) {
+      alert("Click Error: " + err.message);
+    }
     btnAnalyze.textContent = '✦ Analyze';
     btnAnalyze.disabled = false;
   });
@@ -303,6 +308,7 @@ async function runAnalysis() {
 
     renderAnalysisModal(result);
   } catch (e) {
+    alert('Analysis failed: ' + e.message);
     showToast('Analysis failed. Try again.');
     console.error(e);
   }
