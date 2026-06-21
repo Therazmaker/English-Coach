@@ -143,7 +143,7 @@ async function getQuickHint(text, lineEl) {
         model: OLLAMA_MODEL, stream: false,
         messages: [{
           role: 'user',
-          content: `You are a British English coach. Evaluate this phrase in ONE short sentence.\nRate: GOOD / OK / BAD. Format strictly: RATING|tip\nPhrase: "${text}"`
+          content: `You are a British English coach for a Bershka customer service agent. The tone should be friendly, modern and approachable, not overly formal. If the phrase makes no sense, it's likely a pronunciation error. Evaluate this phrase in ONE short sentence.\nRate: GOOD / OK / BAD. Format strictly: RATING|tip\nPhrase: "${text}"`
         }]
       })
     });
@@ -333,7 +333,14 @@ async function runAnalysis() {
         model: OLLAMA_MODEL, stream: false,
         messages: [{
           role: 'user',
-          content: `You are an expert British English coach. Analyze this transcript and respond ONLY in valid JSON.\n\nTranscript:\n${text}\n\nRespond with exact structure: {"score":<0-100>,"scoreLabel":"<Label>","summary":"<summary>","strengths":["<s1>","<s2>"],"improvements":[{"original":"<o>","better":"<b>","why":"<w>"}],"vocabulary":["<v1>","<v2>"],"xpEarned":<10-50>}`
+          content: `You are an expert British English coach for a Bershka customer service agent. The brand tone is friendly, modern, and close to the customer (polite but not overly formal or stiff).
+Analyze this transcript. If you see nonsensical phrases, assume it's a pronunciation error where the speech-to-text failed, and point it out.
+Respond ONLY in valid JSON.
+
+Transcript:
+${text}
+
+Respond with exact structure: {"score":<0-100>,"scoreLabel":"<Label>","summary":"<summary>","strengths":["<s1>","<s2>"],"improvements":[{"original":"<o>","better":"<b>","why":"<w>"}],"vocabulary":["<v1>","<v2>"],"xpEarned":<10-50>}`
         }]
       })
     });
