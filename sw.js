@@ -34,7 +34,9 @@ self.addEventListener('fetch', event => {
   
   event.respondWith(
     caches.match(event.request).then(response => {
-      return response || fetch(event.request);
+      return response || fetch(event.request).catch(err => {
+        console.warn('Service Worker fetch failed for:', event.request.url);
+      });
     })
   );
 });

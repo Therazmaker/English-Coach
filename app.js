@@ -53,7 +53,15 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem('ec_state', JSON.stringify(state));
+  try {
+    // Limit history to 50 calls to prevent Quota Exceeded errors over time
+    if (state.calls && state.calls.length > 50) {
+      state.calls = state.calls.slice(0, 50);
+    }
+    localStorage.setItem('ec_state', JSON.stringify(state));
+  } catch (e) {
+    console.warn('Failed to save state to localStorage (Private Mode or Quota Exceeded)', e);
+  }
   updateXPUI();
 }
 
