@@ -43,6 +43,19 @@ let recognition = null;
 let audioContext, analyser, microphone, drawVisual;
 let transcriptLines = [];
 
+const statTime = $('stat-time');
+const statWords = $('stat-words');
+const callStats = $('call-stats');
+let callTimer = null;
+let secondsElapsed = 0;
+let wordCount = 0;
+
+function formatTime(s) {
+  const m = Math.floor(s/60).toString().padStart(2, '0');
+  const sec = (s%60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
 // ── INITIALIZATION ────────────────────────────────────────────
 function init() {
   loadState();
@@ -105,22 +118,55 @@ function setupSpeechRecognition() {
   recognition = new SpeechRec();
   recognition.lang = 'en-GB';
   recognition.continuous = true;
-  recognition.interimResults = false;
+  recognition.interimResults = true; // Enables live typing
+
+  let currentInterimElement = null;
 
   recognition.onresult = (event) => {
-    const text = event.results[event.results.length - 1][0].transcript.trim();
-    if (text) {
+    let finalTranscript = '';
+    let interimTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      } else {
+        interimTranscript += event.results[i][0].transcript;
+      }
+    }
+
+    if (finalTranscript) {
+      finalTranscript = finalTranscript.trim();
       if (elEmpty) elEmpty.style.display = 'none';
-      const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
-      transcriptLines.push({ ts, text });
       
+      const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+      transcriptLines.push({ ts, text: finalTranscript });
+      
+      wordCount += finalTranscript.split(/\s+/).filter(w => w.length > 0).length;
+      if (statWords) statWords.textContent = wordCount;
+      
+      if (currentInterimElement) {
+        currentInterimElement.remove();
+        currentInterimElement = null;
+      }
+
       const lineEl = document.createElement('div');
       lineEl.className = 't-line';
-      lineEl.innerHTML = `<div class="t-text">${text}</div>`;
+      lineEl.innerHTML = `<div class="t-text">${finalTranscript}</div>`;
       elTranscript.appendChild(lineEl);
       elTranscript.scrollTop = elTranscript.scrollHeight;
 
-      getQuickHint(text, lineEl);
+      getQuickHint(finalTranscript, lineEl);
+    }
+
+    if (interimTranscript) {
+      if (elEmpty) elEmpty.style.display = 'none';
+      if (!currentInterimElement) {
+        currentInterimElement = document.createElement('div');
+        currentInterimElement.className = 't-interim';
+        elTranscript.appendChild(currentInterimElement);
+      }
+      currentInterimElement.textContent = interimTranscript;
+      elTranscript.scrollTop = elTranscript.scrollHeight;
     }
   };
 
@@ -274,6 +320,20 @@ function setupEvents() {
     btnEnd.classList.remove('hidden');
     recDot.classList.remove('hidden');
     
+    secondsElapsed = 0;
+    wordCount = 0;
+    if(statTime) statTime.textContent = '00:00';
+    if(statWords) statWords.textContent = '0';
+    if(callStats) callStats.classList.remove('hidden');
+    
+    if (callTimer) clearInterval(callTimer);
+    callTimer = setInterval(() => {
+      if (isRecording && !isPaused) {
+        secondsElapsed++;
+        if(statTime) statTime.textContent = formatTime(secondsElapsed);
+      }
+    }, 1000);
+    
     if(recognition) {
       try { recognition.start(); } catch(e) { console.error('Start error:', e); }
     }
@@ -320,6 +380,8 @@ function setupEvents() {
       btnAnalyze.disabled = true;
       btnAnalyze.classList.remove('btn-analyze-magic');
     }
+    
+    if (callTimer) clearInterval(callTimer);
   });
 
   btnNew.addEventListener('click', () => {
@@ -337,6 +399,8 @@ function setupEvents() {
     btnAnalyze.classList.add('hidden');
     btnAnalyze.classList.remove('btn-analyze-magic');
     btnStart.classList.remove('hidden');
+    if (callStats) callStats.classList.add('hidden');
+    if (callTimer) clearInterval(callTimer);
   });
 
   btnAnalyze.addEventListener('click', async () => {

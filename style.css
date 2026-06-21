@@ -174,6 +174,20 @@ main {
 .t-line.scored-OK { border-left-color: var(--amber); }
 .t-line.scored-BAD { border-left-color: var(--red); }
 
+.t-interim {
+  font-size: 14px; color: var(--text-dim); font-style: italic;
+  padding: 12px; animation: pulseText 1.5s infinite;
+}
+@keyframes pulseText { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+.call-stats {
+  display: flex; justify-content: space-around;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px; text-align: center; font-family: var(--mono);
+}
+.stat-mini span { font-size: 18px; font-weight: 700; color: var(--cyan); }
+.stat-mini small { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+
 .t-text { color: var(--text); }
 .t-hint {
   font-size: 12px; margin-top: 8px;
