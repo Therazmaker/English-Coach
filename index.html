@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Prevents zoom on mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#080B10">
+  <title>English Coach</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Level Up Canvas -->
+  <canvas id="particles-canvas"></canvas>
+
+  <div class="app-container">
+    
+    <!-- HEADER -->
+    <header>
+      <div class="header-left">
+        <div class="logo">🎙</div>
+        <div class="title-info">
+          <h1>ENGLISH COACH</h1>
+          <p id="level-title">Loading...</p>
+        </div>
+      </div>
+      <button id="btn-history" class="icon-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      </button>
+    </header>
+
+    <!-- XP BAR -->
+    <div class="xp-container">
+      <div class="xp-labels">
+        <span id="level-label">LVL 1</span>
+        <span id="xp-label">0 / 100 XP</span>
+      </div>
+      <div class="xp-track">
+        <div class="xp-fill" id="xp-fill" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <main id="view-dashboard">
+      <div class="visualizer-container">
+        <canvas id="waveform"></canvas>
+      </div>
+
+      <div class="transcript-box" id="transcript-box">
+        <div class="empty-state" id="empty-state">
+          Tap start to begin your call session.<br>Speak clearly in English.
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-start" class="btn-primary">▶ Start Call</button>
+        <button id="btn-end" class="btn-danger hidden">■ End Call</button>
+        <button id="btn-analyze" class="btn-secondary hidden" disabled>✦ Analyze</button>
+      </div>
+    </main>
+
+    <!-- ANALYSIS MODAL -->
+    <div id="modal-analysis" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Session Analysis</h2>
+          <button class="close-btn" id="close-analysis">✕</button>
+        </div>
+        <div class="modal-body" id="analysis-content">
+          <!-- Analysis content injected here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY MODAL -->
+    <div id="modal-history" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Session History</h2>
+          <button class="close-btn" id="close-history">✕</button>
+        </div>
+        <div class="modal-body" id="history-content">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-val" id="stat-calls">0</div>
+              <div class="stat-lbl">Calls</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val" id="stat-avg">-</div>
+              <div class="stat-lbl">Avg Score</div>
+            </div>
+          </div>
+          <div class="history-list" id="history-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATION TOAST -->
+    <div id="toast" class="toast hidden"></div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
