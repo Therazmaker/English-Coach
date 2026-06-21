@@ -461,8 +461,7 @@ Respond with exact structure: {"score":<0-100>,"scoreLabel":"<Label>","summary":
 
     state.calls.unshift({
       date: new Date().toISOString(),
-      score: result.score,
-      summary: result.summary
+      ...result // Guardo el objeto de análisis COMPLETO (mejoras, vocabulario, etc.)
     });
     saveState();
 
@@ -503,26 +502,42 @@ function renderAnalysisModal(data) {
 function renderHistory() {
   $('stat-calls').textContent = state.calls.length;
   if(state.calls.length > 0) {
-    const avg = Math.round(state.calls.reduce((s,c)=>s+c.score,0)/state.calls.length);
+    const avg = Math.round(state.calls.reduce((s,c)=>s+(c.score||0),0)/state.calls.length);
     $('stat-avg').textContent = avg;
     $('stat-avg').style.color = avg >= 75 ? 'var(--green)' : avg >= 50 ? 'var(--amber)' : 'var(--red)';
   }
 
-  $('history-list').innerHTML = state.calls.map(c => {
+  // Draw Trend Chart (últimas 10 llamadas)
+  const recentCalls = state.calls.slice(0, 10).reverse();
+  $('trend-bars').innerHTML = recentCalls.map(c => {
+    const score = c.score || 0;
+    const cl = score >= 75 ? 'trend-GOOD' : score >= 50 ? 'trend-OK' : 'trend-BAD';
+    return `<div class="trend-bar ${cl}" style="height: ${Math.max(5, score)}%"><span>${score}</span></div>`;
+  }).join('');
+
+  $('history-list').innerHTML = state.calls.map((c, idx) => {
     const d = new Date(c.date);
     const dStr = `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'})}`;
-    const color = c.score >= 75 ? 'var(--green)' : c.score >= 50 ? 'var(--amber)' : 'var(--red)';
-    return `<div class="history-item">
+    const score = c.score || 0;
+    const color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
+    const sum = c.summary ? c.summary.substring(0,40) + '...' : 'Review details';
+    
+    return `<div class="history-item" onclick="openHistoricalAnalysis(${idx})">
       <div>
         <div class="hi-date">${dStr}</div>
-        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">${c.summary.substring(0,40)}...</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">${sum} <span style="color:var(--cyan)">👉</span></div>
       </div>
-      <div class="hi-score" style="color:${color}">${c.score}</div>
+      <div class="hi-score" style="color:${color}">${score}</div>
     </div>`;
   }).join('');
 
   $('modal-history').classList.remove('hidden');
 }
+
+window.openHistoricalAnalysis = function(idx) {
+  const data = state.calls[idx];
+  renderAnalysisModal(data);
+};
 
 // ── XP & PARTICLES ────────────────────────────────────────────
 function awardXP(amount) {

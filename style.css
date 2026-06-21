@@ -268,9 +268,18 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .stat-val { font-size: 28px; font-weight: 700; font-family: var(--mono); color: var(--text); }
 .stat-lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-top: 4px; letter-spacing: 1px; }
 
-.history-item { background: var(--surface); padding: 16px; border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.history-item { background: var(--surface); padding: 16px; border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.2s, border-color 0.2s; }
+.history-item:active { transform: scale(0.98); border-color: var(--cyan); }
 .hi-date { font-size: 13px; color: var(--text-dim); }
 .hi-score { font-size: 18px; font-weight: 700; font-family: var(--mono); }
+
+.chart-container { background: var(--surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 24px; }
+.trend-bars { display: flex; align-items: flex-end; justify-content: space-between; height: 80px; gap: 8px; }
+.trend-bar { flex: 1; background: var(--surface-elevated); border-radius: 4px 4px 0 0; position: relative; transition: height 0.5s; min-height: 5px; }
+.trend-bar.trend-GOOD { background: linear-gradient(0deg, var(--green-dim), var(--green)); box-shadow: 0 0 10px var(--green-dim); }
+.trend-bar.trend-OK { background: linear-gradient(0deg, var(--amber-dim), var(--amber)); }
+.trend-bar.trend-BAD { background: linear-gradient(0deg, var(--red-dim), var(--red)); }
+.trend-bar span { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-family: var(--mono); color: var(--text-dim); }
 
 /* ── TOAST ───────────────────────── */
 .toast {
