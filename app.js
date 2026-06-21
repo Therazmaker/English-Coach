@@ -112,7 +112,10 @@ function setupSpeechRecognition() {
     }
   };
 
-  recognition.onerror = (e) => console.warn('Speech error:', e.error);
+  recognition.onerror = (e) => { 
+    console.warn('Speech error:', e.error);
+    if (e.error !== 'no-speech') showToast('Speech Error: ' + e.error);
+  };
   recognition.onend = () => { if (isRecording) recognition.start(); };
 }
 
@@ -214,7 +217,7 @@ function drawWaveform() {
 
 // ── EVENTS ────────────────────────────────────────────────────
 function setupEvents() {
-  btnStart.addEventListener('click', async () => {
+  btnStart.addEventListener('click', () => {
     isRecording = true;
     transcriptLines = [];
     elTranscript.innerHTML = '';
@@ -222,8 +225,10 @@ function setupEvents() {
     btnEnd.classList.remove('hidden');
     btnAnalyze.classList.add('hidden');
     
-    await initAudioVisualizer();
-    if(recognition) recognition.start();
+    if(recognition) {
+      try { recognition.start(); } catch(e) { console.error('Start error:', e); }
+    }
+    initAudioVisualizer(); // Removed await so recognition starts immediately
     awardXP(5); // Start call reward
   });
 
