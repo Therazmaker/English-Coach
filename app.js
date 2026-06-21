@@ -30,11 +30,14 @@ const elTranscript = $('transcript-box');
 const elEmpty      = $('empty-state');
 const btnStart     = $('btn-start');
 const btnEnd       = $('btn-end');
+const btnPause     = $('btn-pause');
+const btnNew       = $('btn-new');
 const btnAnalyze   = $('btn-analyze');
 const btnHistory   = $('btn-history');
 
 // ── AUDIO & RECOGNITION ───────────────────────────────────────
 let isRecording = false;
+let isPaused = false;
 let recognition = null;
 let audioContext, analyser, microphone, drawVisual;
 let transcriptLines = [];
@@ -227,11 +230,21 @@ function drawWaveform() {
 function setupEvents() {
   btnStart.addEventListener('click', () => {
     isRecording = true;
+    isPaused = false;
     transcriptLines = [];
-    elTranscript.innerHTML = '';
+    
+    // Clear previous transcript items except empty-state
+    Array.from(elTranscript.children).forEach(c => {
+      if(c.id !== 'empty-state') c.remove();
+    });
+    
     btnStart.classList.add('hidden');
-    btnEnd.classList.remove('hidden');
+    btnNew.classList.add('hidden');
     btnAnalyze.classList.add('hidden');
+    
+    btnPause.classList.remove('hidden');
+    btnPause.textContent = '⏸ Pause';
+    btnEnd.classList.remove('hidden');
     
     if(recognition) {
       try { recognition.start(); } catch(e) { console.error('Start error:', e); }
@@ -240,15 +253,52 @@ function setupEvents() {
     awardXP(5); // Start call reward
   });
 
+  btnPause.addEventListener('click', () => {
+    isPaused = !isPaused;
+    if (isPaused) {
+      btnPause.textContent = '▶ Resume';
+      isRecording = false; // Pauses waveform and prevents onend from restarting recognition
+      if(recognition) recognition.stop();
+      if(audioContext) audioContext.suspend();
+    } else {
+      btnPause.textContent = '⏸ Pause';
+      isRecording = true;
+      if(recognition) {
+        try { recognition.start(); } catch(e) {}
+      }
+      if(audioContext) audioContext.resume();
+    }
+  });
+
   btnEnd.addEventListener('click', () => {
     isRecording = false;
+    isPaused = false;
     if(recognition) recognition.stop();
     if(audioContext) audioContext.suspend();
     cancelAnimationFrame(drawVisual);
     
+    btnPause.classList.add('hidden');
     btnEnd.classList.add('hidden');
+    
+    btnNew.classList.remove('hidden');
     btnAnalyze.classList.remove('hidden');
     btnAnalyze.disabled = transcriptLines.length === 0;
+  });
+
+  btnNew.addEventListener('click', () => {
+    transcriptLines = [];
+    Array.from(elTranscript.children).forEach(c => {
+      if(c.id !== 'empty-state') c.remove();
+    });
+    if($('empty-state')) $('empty-state').style.display = 'block';
+
+    const canvas = $('waveform');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    btnNew.classList.add('hidden');
+    btnAnalyze.classList.add('hidden');
+    btnStart.classList.remove('hidden');
   });
 
   btnAnalyze.addEventListener('click', async () => {
