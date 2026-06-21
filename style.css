@@ -32,6 +32,25 @@ body {
   justify-content: center;
 }
 
+/* ── AMBIENT BACKGROUND ──────────────────────── */
+.bg-orb {
+  position: fixed; border-radius: 50%;
+  filter: blur(80px); z-index: -1; opacity: 0.35;
+  animation: floatOrb 15s infinite alternate ease-in-out;
+}
+.orb-1 {
+  width: 300px; height: 300px; background: var(--cyan);
+  top: -100px; left: -100px;
+}
+.orb-2 {
+  width: 400px; height: 400px; background: var(--purple);
+  bottom: -150px; right: -150px; animation-delay: -7s;
+}
+@keyframes floatOrb {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(50px, 80px) scale(1.2); }
+}
+
 #particles-canvas {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
@@ -51,16 +70,26 @@ body {
 
 /* ── HEADER ──────────────────────── */
 header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px; background: rgba(14, 18, 25, 0.6);
+  backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
 }
 
 .header-left { display: flex; align-items: center; gap: 12px; }
-.logo { font-size: 28px; }
+.logo { font-size: 28px; display: flex; align-items: center; }
+
+.rec-dot {
+  display: inline-block; width: 10px; height: 10px;
+  background: var(--red); border-radius: 50%; margin-right: 8px;
+  box-shadow: 0 0 10px var(--red);
+  animation: pulseRec 1.5s infinite;
+}
+@keyframes pulseRec {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 .title-info h1 {
   font-size: 13px; font-weight: 700;
   letter-spacing: 0.15em; color: var(--cyan);
@@ -169,6 +198,19 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary { background: var(--cyan); color: #000; box-shadow: 0 4px 20px rgba(110,231,255,0.3); }
 .btn-danger { background: var(--red); color: #fff; box-shadow: 0 4px 20px rgba(239,68,68,0.3); }
 .btn-secondary { background: var(--surface-elevated); color: var(--text); border: 1px solid var(--border); }
+
+.btn-analyze-magic {
+  background: linear-gradient(90deg, var(--surface-elevated), #2c1a4d, var(--surface-elevated));
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite linear;
+  border: 1px solid var(--purple);
+  color: #fff;
+  box-shadow: 0 0 15px rgba(167, 139, 250, 0.4);
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 .hidden { display: none !important; }
 

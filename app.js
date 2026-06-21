@@ -34,6 +34,7 @@ const btnPause     = $('btn-pause');
 const btnNew       = $('btn-new');
 const btnAnalyze   = $('btn-analyze');
 const btnHistory   = $('btn-history');
+const recDot       = $('rec-dot');
 
 // ── AUDIO & RECOGNITION ───────────────────────────────────────
 let isRecording = false;
@@ -199,29 +200,55 @@ function drawWaveform() {
   function draw() {
     if (!isRecording) {
       ctx.clearRect(0, 0, W, H);
+      ctx.beginPath();
+      ctx.moveTo(0, H/2);
+      ctx.lineTo(W, H/2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if(isPaused) drawVisual = requestAnimationFrame(draw);
       return;
     }
     drawVisual = requestAnimationFrame(draw);
     analyser.getByteFrequencyData(dataArray);
 
-    ctx.fillStyle = '#0E1219';
-    ctx.fillRect(0, 0, W, H);
-
-    const barWidth = (W / bufferLength) * 2.5;
+    ctx.clearRect(0, 0, W, H);
+    
+    ctx.beginPath();
+    ctx.moveTo(0, H / 2);
+    
     let x = 0;
-
+    const sliceWidth = W / bufferLength;
+    
+    // Draw top half smooth curve
     for (let i = 0; i < bufferLength; i++) {
-      const barHeight = (dataArray[i] / 255) * H;
-      const gradient = ctx.createLinearGradient(0, H, 0, H - barHeight);
-      gradient.addColorStop(0, '#a78bfa');
-      gradient.addColorStop(1, '#6EE7FF');
-      
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.roundRect(x, H - barHeight, barWidth - 1, barHeight, [2, 2, 0, 0]);
-      ctx.fill();
-      x += barWidth;
+      let v = dataArray[i] / 255.0;
+      let windowFactor = Math.sin((i / bufferLength) * Math.PI); // Smooth edges
+      let y = (H / 2) - (v * (H / 2) * windowFactor * 1.5); // 1.5x amplification
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+      x += sliceWidth;
     }
+    
+    // Draw bottom half symmetric
+    for (let i = bufferLength - 1; i >= 0; i--) {
+      let v = dataArray[i] / 255.0;
+      let windowFactor = Math.sin((i / bufferLength) * Math.PI);
+      let y = (H / 2) + (v * (H / 2) * windowFactor * 1.5);
+      x -= sliceWidth;
+      ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    
+    const gradient = ctx.createLinearGradient(0, 0, W, 0);
+    gradient.addColorStop(0, '#6EE7FF');
+    gradient.addColorStop(0.5, '#a78bfa');
+    gradient.addColorStop(1, '#6EE7FF');
+    
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    ctx.shadowColor = '#a78bfa';
+    ctx.shadowBlur = 20;
   }
   draw();
 }
@@ -245,6 +272,7 @@ function setupEvents() {
     btnPause.classList.remove('hidden');
     btnPause.textContent = '⏸ Pause';
     btnEnd.classList.remove('hidden');
+    recDot.classList.remove('hidden');
     
     if(recognition) {
       try { recognition.start(); } catch(e) { console.error('Start error:', e); }
@@ -257,12 +285,14 @@ function setupEvents() {
     isPaused = !isPaused;
     if (isPaused) {
       btnPause.textContent = '▶ Resume';
-      isRecording = false; // Pauses waveform and prevents onend from restarting recognition
+      isRecording = false; // Pauses waveform
+      recDot.classList.add('hidden');
       if(recognition) recognition.stop();
       if(audioContext) audioContext.suspend();
     } else {
       btnPause.textContent = '⏸ Pause';
       isRecording = true;
+      recDot.classList.remove('hidden');
       if(recognition) {
         try { recognition.start(); } catch(e) {}
       }
@@ -279,10 +309,17 @@ function setupEvents() {
     
     btnPause.classList.add('hidden');
     btnEnd.classList.add('hidden');
+    recDot.classList.add('hidden');
     
     btnNew.classList.remove('hidden');
     btnAnalyze.classList.remove('hidden');
-    btnAnalyze.disabled = transcriptLines.length === 0;
+    if (transcriptLines.length > 0) {
+      btnAnalyze.disabled = false;
+      btnAnalyze.classList.add('btn-analyze-magic');
+    } else {
+      btnAnalyze.disabled = true;
+      btnAnalyze.classList.remove('btn-analyze-magic');
+    }
   });
 
   btnNew.addEventListener('click', () => {
@@ -298,11 +335,13 @@ function setupEvents() {
 
     btnNew.classList.add('hidden');
     btnAnalyze.classList.add('hidden');
+    btnAnalyze.classList.remove('btn-analyze-magic');
     btnStart.classList.remove('hidden');
   });
 
   btnAnalyze.addEventListener('click', async () => {
     btnAnalyze.disabled = true;
+    btnAnalyze.classList.remove('btn-analyze-magic');
     const originalText = btnAnalyze.textContent;
     btnAnalyze.textContent = 'Analyzing...';
     try {
