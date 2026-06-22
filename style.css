@@ -370,6 +370,15 @@ aside {
 }
 .icon-btn-sm:hover { color: var(--cyan); }
 
+.custom-phrase-input { display: flex; gap: 8px; margin-top: 8px; }
+.custom-phrase-input input {
+  flex: 1; background: var(--surface-elevated);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px; font-family: var(--sans);
+  font-size: 13px; outline: none; transition: border-color 0.2s;
+}
+.custom-phrase-input input:focus { border-color: var(--cyan); }
+
 .phrase-celebration {
   position: fixed; top: 50%; left: 50%;
   transform: translate(-50%, -50%);

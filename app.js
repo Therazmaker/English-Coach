@@ -53,6 +53,8 @@ const elPhraseList   = $('phrase-list');
 const btnRefreshPhrases = $('btn-refresh-phrases');
 const elPhraseCeleb  = $('phrase-celebration');
 const statHits       = $('stat-hits');
+const elCustomPhraseInput = $('custom-phrase-text');
+const btnAddPhrase        = $('btn-add-phrase');
 let phrasesHitThisCall = 0;
 
 // ── AUDIO & RECOGNITION ───────────────────────────────────────
@@ -523,6 +525,59 @@ function setupEvents() {
     btnRefreshPhrases.addEventListener('click', () => {
       generateDailyMissions();
       showToast("Missions refreshed!");
+    });
+  }
+
+  if (btnAddPhrase && elCustomPhraseInput) {
+    btnAddPhrase.addEventListener('click', async () => {
+      const text = elCustomPhraseInput.value.trim();
+      if (!text) return;
+      
+      btnAddPhrase.disabled = true;
+      btnAddPhrase.textContent = '...';
+      
+      try {
+        const res = await fetch(OLLAMA_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OLLAMA_KEY },
+          body: JSON.stringify({
+            model: OLLAMA_MODEL, stream: false,
+            messages: [{
+              role: 'user',
+              content: `Translate the following Spanish phrase into a natural, friendly, British English customer service phrase for Bershka. Respond ONLY with the translated English phrase, no quotes, no explanations.\nPhrase: "${text}"`
+            }]
+          })
+        });
+        const data = await res.json();
+        let englishPhrase = data.message?.content?.trim() || '';
+        englishPhrase = englishPhrase.replace(/^["']|["']$/g, ''); // Remove quotes if any
+        
+        if (englishPhrase) {
+          if (!state.learnedPhrases) state.learnedPhrases = [];
+          if (!state.learnedPhrases.includes(englishPhrase)) {
+            state.learnedPhrases.push(englishPhrase);
+            
+            // Add directly to today's missions to practice immediately
+            if (state.dailyMissions && state.dailyMissions.length < 5) {
+               state.dailyMissions.push({ text: englishPhrase, hit: false });
+               renderMissions();
+            }
+            
+            renderVocabBank();
+            saveState();
+            showToast("Custom phrase translated & added!");
+            elCustomPhraseInput.value = '';
+          } else {
+             showToast("Phrase already exists in your bank.");
+          }
+        }
+      } catch (e) {
+        console.error("Translation error:", e);
+        showToast("Translation failed. Try again.");
+      } finally {
+        btnAddPhrase.disabled = false;
+        btnAddPhrase.textContent = 'Add';
+      }
     });
   }
 }
