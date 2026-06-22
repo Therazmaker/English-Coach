@@ -72,8 +72,9 @@ const $ = id => document.getElementById(id);
 const elTranscript = $('transcript-box');
 const elEmpty      = $('empty-state');
 const btnStart     = $('btn-start');
-const btnEnd       = $('btn-end');
 const btnPause     = $('btn-pause');
+const btnHold      = $('btn-hold');
+const btnEnd       = $('btn-end');
 const btnNew       = $('btn-new');
 const btnAnalyze   = $('btn-analyze');
 const btnHistory   = $('btn-history');
@@ -101,6 +102,7 @@ const callStats = $('call-stats');
 let callTimer = null;
 let secondsElapsed = 0;
 let wordCount = 0;
+let isOnHold = false;
 
 function formatTime(s) {
   const m = Math.floor(s/60).toString().padStart(2, '0');
@@ -546,6 +548,10 @@ function setupEvents() {
     
     btnPause.classList.remove('hidden');
     btnPause.textContent = '⏸ Pause';
+    btnHold.classList.remove('hidden');
+    btnHold.textContent = '🎧 Consult Team';
+    btnHold.style.backgroundColor = 'var(--amber)';
+    isOnHold = false;
     btnEnd.classList.remove('hidden');
     recDot.classList.remove('hidden');
     
@@ -593,6 +599,46 @@ function setupEvents() {
     }
   });
 
+  btnHold.addEventListener('click', () => {
+    isOnHold = !isOnHold;
+    if (isOnHold) {
+      btnHold.textContent = '🎙️ Back to Customer';
+      btnHold.style.backgroundColor = 'var(--red)';
+      
+      // Stop listening to English while speaking Spanish
+      isRecording = false; 
+      if (recognition) recognition.stop();
+      if (audioContext) audioContext.suspend();
+      
+      // Inject hold marker
+      const ts = formatTime(secondsElapsed);
+      transcriptLines.push({ ts, text: '[Consulting with team in Spanish...]' });
+      const holdEl = document.createElement('div');
+      holdEl.className = 't-line';
+      holdEl.innerHTML = `<span class="t-time" style="color:var(--amber)">[${ts}]</span> <span style="color:var(--amber); font-style:italic;">[Consulting with team in Spanish...]</span>`;
+      elTranscript.appendChild(holdEl);
+      elTranscript.scrollTop = elTranscript.scrollHeight;
+
+    } else {
+      btnHold.textContent = '🎧 Consult Team';
+      btnHold.style.backgroundColor = 'var(--amber)';
+      
+      // Resume English recognition
+      isRecording = true;
+      if (recognition) { try { recognition.start(); } catch(e) {} }
+      if (audioContext) audioContext.resume();
+      
+      // Inject return marker
+      const ts = formatTime(secondsElapsed);
+      transcriptLines.push({ ts, text: '[Returned to Customer]' });
+      const holdEl = document.createElement('div');
+      holdEl.className = 't-line';
+      holdEl.innerHTML = `<span class="t-time" style="color:var(--green)">[${ts}]</span> <span style="color:var(--green); font-style:italic;">[Returned to Customer]</span>`;
+      elTranscript.appendChild(holdEl);
+      elTranscript.scrollTop = elTranscript.scrollHeight;
+    }
+  });
+
   btnEnd.addEventListener('click', () => {
     isRecording = false;
     isPaused = false;
@@ -601,6 +647,7 @@ function setupEvents() {
     cancelAnimationFrame(drawVisual);
     
     btnPause.classList.add('hidden');
+    btnHold.classList.add('hidden');
     btnEnd.classList.add('hidden');
     recDot.classList.add('hidden');
     
