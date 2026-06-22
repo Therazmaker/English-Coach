@@ -1026,37 +1026,66 @@ function setupTrainingRoom() {
       } else {
         clearInterval(countdownInterval);
         elIcon.textContent = '⏹️';
-        elLabel.textContent = 'Listening...';
-        // Start recording after countdown
+        elLabel.textContent = 'Listening... 5s';
+
         trainRec = new SpeechRec();
         trainRec.lang = 'en-GB';
-        trainRec.continuous = false;
-        trainRec.interimResults = false;
-        trainRec.maxAlternatives = 5; // Try multiple interpretations
-        trainRec.onresult = (e) => {
-          // Pick the alternative with the highest sim to target
-          const target = phrases[currentIdx];
-          const targetClean = target.toLowerCase().replace(/[.,!?]/g, '');
-          let bestHeard = e.results[0][0].transcript.trim();
-          let bestSim = calculateSimilarity(bestHeard.toLowerCase(), targetClean);
-          for (let j = 1; j < e.results[0].length; j++) {
-            const alt = e.results[0][j].transcript.trim();
-            const altSim = calculateSimilarity(alt.toLowerCase(), targetClean);
-            if (altSim > bestSim) { bestSim = altSim; bestHeard = alt; }
-          }
-          stopTrainRecording();
-          processTrainingResult(target, bestHeard);
-        };
-        trainRec.onerror = (e) => {
-          stopTrainRecording();
-          if (e.error === 'no-speech') {
-            showToast('Nothing detected. Speak a bit louder and try again.');
+        trainRec.continuous = true;
+        trainRec.interimResults = true;
+        trainRec.maxAlternatives = 3;
+
+        let accumulated = '';
+        let windowSecs = 5;
+
+        const windowInterval = setInterval(() => {
+          windowSecs--;
+          if (windowSecs > 0) {
+            elLabel.textContent = `Listening... ${windowSecs}s`;
           } else {
-            showToast('Mic error: ' + e.error + '. Try again.');
+            clearInterval(windowInterval);
+            elLabel.textContent = 'Processing...';
+          }
+        }, 1000);
+
+        trainRec.onresult = (e) => {
+          // Accumulate everything said so far during the 5s window
+          accumulated = '';
+          for (let i = 0; i < e.results.length; i++) {
+            accumulated += e.results[i][0].transcript + ' ';
+          }
+          accumulated = accumulated.trim();
+        };
+
+        trainRec.onerror = (e) => {
+          clearInterval(windowInterval);
+          if (trainRec) { try { trainRec.stop(); } catch(_) {} trainRec = null; }
+          isTrainRecording = false;
+          btnRecord.classList.remove('recording');
+          elIcon.textContent = '🎤';
+          elLabel.textContent = 'Tap & Say It';
+          if (e.error !== 'no-speech') showToast('Mic error: ' + e.error);
+        };
+
+        // onend fires after the 5s auto-stop — process the full accumulated phrase
+        trainRec.onend = () => {
+          clearInterval(windowInterval);
+          isTrainRecording = false;
+          btnRecord.classList.remove('recording');
+          elIcon.textContent = '🎤';
+          elLabel.textContent = 'Tap & Say It';
+          if (accumulated) {
+            processTrainingResult(phrases[currentIdx], accumulated);
+          } else {
+            showToast('Nothing detected. Speak a bit louder and try again.');
           }
         };
-        trainRec.onend = () => { if (isTrainRecording) stopTrainRecording(); };
-        try { trainRec.start(); } catch(e) { stopTrainRecording(); }
+
+        try { trainRec.start(); } catch(e) { stopTrainRecording(); return; }
+
+        // Hard stop after 5 seconds — user has the full window to finish the phrase
+        setTimeout(() => {
+          if (trainRec) { try { trainRec.stop(); } catch(_) {} }
+        }, 5000);
       }
     }, 1000);
   }
