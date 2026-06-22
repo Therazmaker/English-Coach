@@ -422,13 +422,17 @@ async function getQuickHint(text, lineEl) {
       model: OLLAMA_MODEL, stream: false,
       messages: [{
         role: 'user',
-        content: `You are a British English coach for a Bershka customer service agent. The tone should be friendly, modern and approachable, not overly formal. If the phrase makes no sense, it's likely a pronunciation error. Evaluate this phrase in ONE short sentence.\nRate: GOOD / OK / BAD. Format strictly: RATING|tip\nPhrase: "${text}"`
+        content: `You are a British English coach for a Bershka customer service agent. The tone should be friendly, modern and approachable.
+If the phrase makes absolutely no sense in English (gibberish/nonsense words), it means the user put the customer on hold and is speaking Spanish to their team. In this case, respond STRICTLY with "IGNORE|" and nothing else.
+Evaluate this phrase in ONE short sentence.
+Rate: GOOD / OK / BAD. Format strictly: RATING|tip
+Phrase: "${text}"`
       }]
     });
     const data = await res.json();
     const reply = data.message?.content?.trim() || '';
     const [rating, tip] = reply.split('|');
-    if (!rating || !tip) return;
+    if (!rating || !tip || rating.includes('IGNORE')) return;
 
     const cl = rating.includes('GOOD') ? 'GOOD' : rating.includes('BAD') ? 'BAD' : 'OK';
     const hintDiv = document.createElement('div');
@@ -817,7 +821,7 @@ async function runAnalysis(retryCallId = null) {
       messages: [{
         role: 'user',
         content: `You are an expert British English coach for a Bershka customer service agent. The brand tone is friendly, modern, and close to the customer (polite but not overly formal or stiff). ${contextAlerts}
-Analyze this transcript. If you see nonsensical phrases, assume it's a pronunciation error where the speech-to-text failed, and point it out.
+Analyze this transcript. CRITICAL RULE: If you see blocks of text that make absolutely no sense in English (gibberish/nonsense words) but might phonetically sound like Spanish, IGNORE THEM COMPLETELY. The user is putting the customer on hold and talking to their internal team in Spanish. DO NOT penalize the user for this, DO NOT list it as a pronunciation error, and DO NOT mention it in the summary.
 Respond ONLY in valid JSON.
 
 Transcript:
