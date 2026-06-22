@@ -198,7 +198,7 @@ function init() {
 }
 
 function loadState() {
-  const saved = localStorage.getItem('coachState');
+  const saved = localStorage.getItem('ec_state');
   if (saved) {
     try {
       state = JSON.parse(saved);
