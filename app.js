@@ -645,7 +645,7 @@ function setupEvents() {
     if (callTimer) clearInterval(callTimer);
   });
 
-  btnAnalyze.addEventListener('click', async () => {
+    btnAnalyze.addEventListener('click', async () => {
     btnAnalyze.disabled = true;
     btnAnalyze.classList.remove('btn-analyze-magic');
     btnAnalyze.textContent = 'Analyzing...';
@@ -658,6 +658,20 @@ function setupEvents() {
     }
     btnAnalyze.textContent = '✦ Analyze';
   });
+
+  window.retryAnalysis = async function(callId, btnEl) {
+    btnEl.disabled = true;
+    btnEl.textContent = '...';
+    try {
+      await runAnalysis(callId);
+      showToast('Analysis recovered successfully!');
+      renderHistory(); // refresh the list
+    } catch(e) {
+      btnEl.disabled = false;
+      btnEl.textContent = 'Retry';
+      showToast('Retry failed.');
+    }
+  };
 
   btnHistory.addEventListener('click', renderHistory);
   $('close-history').addEventListener('click', () => $('view-history').classList.add('hidden'));
@@ -720,12 +734,24 @@ function setupEvents() {
 }
 
 // ── ANALYSIS LOGIC ──────────────────────────────────────────────────
-async function runAnalysis() {
-  const text = transcriptLines.map(l => `[${l.ts}] ${l.text}`).join('\n');
-  
-  const contextAlerts = state.currentCallAlerts && state.currentCallAlerts.length > 0 
+async function runAnalysis(retryCallId = null) {
+  let text = '';
+  let alerts = [];
+
+  if (retryCallId) {
+    const c = state.calls.find(x => x._id === retryCallId);
+    if (!c) throw new Error("Call not found");
+    text = c.rawTranscript;
+    alerts = c.pronunciationAlerts || [];
+    state._pendingCallId = retryCallId;
+  } else {
+    text = transcriptLines.map(l => `[${l.ts}] ${l.text}`).join('\n');
+    alerts = state.currentCallAlerts || [];
+  }
+
+  const contextAlerts = alerts.length > 0 
     ? `\nIMPORTANT CONTEXT: The user had pronunciation errors (the system transcribed them wrongly). Here are their attempts:\n` + 
-      state.currentCallAlerts.map(a => `- Tried to say: "${a.target}" but it sounded like: "${a.heard}"`).join('\n') +
+      alerts.map(a => `- Tried to say: "${a.target}" but it sounded like: "${a.heard}"`).join('\n') +
       `\nFocus heavily on giving phonetics tips on how to correctly pronounce the specific words they failed on.`
     : '';
 
@@ -792,10 +818,10 @@ Respond with exact structure: {"score":<0-100>,"scoreLabel":"<Label>","summary":
     const pendingIdx = state.calls.findIndex(c => c._id === state._pendingCallId);
     const enriched = {
       date: pendingIdx >= 0 ? state.calls[pendingIdx].date : new Date().toISOString(),
-      wordCount: wordCount || (pendingIdx >= 0 ? state.calls[pendingIdx].wordCount : 0),
+      wordCount: pendingIdx >= 0 ? state.calls[pendingIdx].wordCount : (wordCount || 0),
       duration: pendingIdx >= 0 ? state.calls[pendingIdx].duration : secondsElapsed,
-      phrasesHit: phrasesHitThisCall,
-      pronunciationAlerts: state.currentCallAlerts || [],
+      phrasesHit: pendingIdx >= 0 ? (state.calls[pendingIdx].phrasesHit || 0) : phrasesHitThisCall,
+      pronunciationAlerts: pendingIdx >= 0 ? (state.calls[pendingIdx].pronunciationAlerts || []) : (state.currentCallAlerts || []),
       ...result // Full AI result (score, summary, improvements, vocabulary, etc.)
     };
     if (pendingIdx >= 0) {
@@ -903,6 +929,16 @@ function renderHistory() {
     const score = c.score || 0;
     const color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
     const sum = c.summary ? c.summary.substring(0,60) + '...' : 'Review details';
+    
+    if (c.score === null) {
+      return `<div class="history-item" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div class="hi-date">${dStr}</div>
+          <div style="font-size:12px; color:var(--amber); margin-top:6px;">⚠️ Pending AI Analysis</div>
+        </div>
+        <button class="btn btn-sm" onclick="event.stopPropagation(); retryAnalysis(${c._id}, this)" style="background:var(--cyan); color:var(--bg); border:none; padding:6px 12px; border-radius:4px; font-weight:600;">Retry</button>
+      </div>`;
+    }
     
     return `<div class="history-item" onclick="openHistoricalAnalysis(${idx})">
       <div>
