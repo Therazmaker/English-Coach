@@ -5,9 +5,9 @@
 // ── CONFIG ────────────────────────────────────────────────────
 // Multiple CORS proxies as fallbacks (in case one times out)
 const OLLAMA_PROXIES = [
+  'https://corsproxy.io/?https://ollama.com/api/chat',
   'https://corsproxy.io/?https://api.ollama.ai/api/chat',
-  'https://cors-proxy.fringe.zone/https://api.ollama.ai/api/chat',
-  'https://corsproxy.io/?https://ollama.com/api/chat'
+  'https://cors-proxy.fringe.zone/https://api.ollama.ai/api/chat'
 ];
 const OLLAMA_KEY   = 'a749df26093a49c892fece6c0cf7ab36.w1UdR9t19ujmPA2Cycz964Rk';
 const OLLAMA_MODEL = 'gemma3:12b';
@@ -19,7 +19,7 @@ async function fetchWithFallback(body) {
     let i = (lastWorkingProxyIndex + offset) % OLLAMA_PROXIES.length;
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout for slow LLMs
       const res = await fetch(OLLAMA_PROXIES[i], {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OLLAMA_KEY },
