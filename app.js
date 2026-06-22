@@ -1047,13 +1047,21 @@ function setupTrainingRoom() {
           }
         }, 1000);
 
+        let finalAccumulated = '';
+
         trainRec.onresult = (e) => {
-          // Accumulate everything said so far during the 5s window
-          accumulated = '';
+          // Rebuild from scratch on every event using isFinal flag
+          // isFinal results are committed; interim results are the current "in-progress" piece
+          let interim = '';
+          finalAccumulated = '';
           for (let i = 0; i < e.results.length; i++) {
-            accumulated += e.results[i][0].transcript + ' ';
+            if (e.results[i].isFinal) {
+              finalAccumulated += e.results[i][0].transcript + ' ';
+            } else {
+              interim += e.results[i][0].transcript;
+            }
           }
-          accumulated = accumulated.trim();
+          accumulated = (finalAccumulated + interim).trim();
         };
 
         trainRec.onerror = (e) => {
