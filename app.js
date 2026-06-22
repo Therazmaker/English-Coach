@@ -5,9 +5,9 @@
 // ── CONFIG ────────────────────────────────────────────────────
 // Multiple CORS proxies as fallbacks (in case one times out)
 const OLLAMA_PROXIES = [
-  'https://corsproxy.io/?url=https://api.ollama.ai/api/chat',
-  'https://api.allorigins.win/raw?url=https://api.ollama.ai/api/chat',
-  'https://corsproxy.io/?https://ollama.com/api/chat',
+  'https://corsproxy.io/?https://api.ollama.ai/api/chat',
+  'https://cors-proxy.fringe.zone/https://api.ollama.ai/api/chat',
+  'https://corsproxy.io/?https://ollama.com/api/chat'
 ];
 const OLLAMA_KEY   = 'a749df26093a49c892fece6c0cf7ab36.w1UdR9t19ujmPA2Cycz964Rk';
 const OLLAMA_MODEL = 'gemma3:12b';
