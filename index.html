@@ -54,6 +54,10 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         History
       </button>
+      <button id="btn-training" class="icon-btn" title="Training Room" style="color: var(--cyan); border-color: var(--cyan);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+        Train
+      </button>
     </header>
 
     <!-- ══ TWO-COLUMN MAIN LAYOUT ══════════════════════════════ -->
@@ -233,6 +237,65 @@
 
     <!-- PHRASE HIT CELEBRATION -->
     <div id="phrase-celebration" class="phrase-celebration hidden"></div>
+
+    <!-- ══ TRAINING ROOM MODAL ═══════════════════════════════ -->
+    <div id="modal-training" class="modal hidden">
+      <div class="modal-content training-modal-content">
+        <div class="modal-header">
+          <div>
+            <h2>🎓 Training Room</h2>
+            <p style="font-size:12px; color:var(--text-dim); margin:0;">Teach the mic to understand your accent</p>
+          </div>
+          <button class="close-btn" id="close-training">✕</button>
+        </div>
+        <div class="modal-body training-body">
+
+          <!-- Progress -->
+          <div class="training-progress-bar">
+            <div id="training-progress-fill" class="training-progress-fill" style="width:0%"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim); margin-bottom:16px;">
+            <span id="training-phrase-counter">Phrase 1 of 0</span>
+            <span id="training-rules-count">✅ 0 rules saved</span>
+          </div>
+
+          <!-- Phrase Card -->
+          <div class="training-phrase-card">
+            <div class="training-phrase-label">SAY THIS PHRASE</div>
+            <div id="training-phrase-text" class="training-phrase-text">Loading...</div>
+          </div>
+
+          <!-- Record Button -->
+          <div style="text-align:center; margin: 24px 0;">
+            <button id="btn-train-record" class="btn-train-record">
+              <span id="train-record-icon">🎤</span>
+              <span id="train-record-label">Tap &amp; Say It</span>
+            </button>
+          </div>
+
+          <!-- Result Area -->
+          <div id="training-result" class="training-result hidden">
+            <div class="training-result-row">
+              <span class="tr-label">HEARD</span>
+              <span id="tr-heard" class="tr-value tr-bad"></span>
+            </div>
+            <div class="training-result-row">
+              <span class="tr-label">TARGET</span>
+              <span id="tr-target" class="tr-value tr-good"></span>
+            </div>
+            <div id="tr-outcome" class="tr-outcome"></div>
+          </div>
+
+          <!-- Navigation -->
+          <div class="training-nav">
+            <button id="btn-train-prev" class="btn-secondary" style="flex:1;">&#8592; Prev</button>
+            <button id="btn-train-skip" class="btn-secondary" style="flex:1; color:var(--text-dim);">Skip</button>
+            <button id="btn-train-next" class="btn-primary" style="flex:1;">Next &#8594;</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
 
   </div>
 

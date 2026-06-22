@@ -213,6 +213,7 @@ function init() {
   renderSttRules();
   setupSpeechRecognition();
   setupEvents();
+  setupTrainingRoom();
 }
 
 function loadState() {
@@ -906,6 +907,179 @@ function setupEvents() {
        }
     });
   }
+}
+
+// ── TRAINING ROOM ────────────────────────────────────────────────
+function setupTrainingRoom() {
+  const btnTraining  = $('btn-training');
+  const modal        = $('modal-training');
+  const btnClose     = $('close-training');
+  const btnRecord    = $('btn-train-record');
+  const btnNext      = $('btn-train-next');
+  const btnPrev      = $('btn-train-prev');
+  const btnSkip      = $('btn-train-skip');
+  const elPhraseText = $('training-phrase-text');
+  const elCounter    = $('training-phrase-counter');
+  const elRulesCount = $('training-rules-count');
+  const elProgress   = $('training-progress-fill');
+  const elResult     = $('training-result');
+  const elHeard      = $('tr-heard');
+  const elTarget     = $('tr-target');
+  const elOutcome    = $('tr-outcome');
+  const elIcon       = $('train-record-icon');
+  const elLabel      = $('train-record-label');
+
+  if (!btnTraining || !modal) return;
+
+  let phrases = [];
+  let currentIdx = 0;
+  let trainRec = null;
+  let isTrainRecording = false;
+  let sessionRulesSaved = 0;
+
+  function buildTrainingPhrases() {
+    const pool = new Set();
+    // Priority 1: current missions
+    if (state.dailyMissions) state.dailyMissions.forEach(m => pool.add(m.text));
+    // Priority 2: vocab bank
+    if (state.learnedPhrases) state.learnedPhrases.forEach(p => pool.add(p));
+    // Priority 3: base phrases
+    BASE_PHRASES.forEach(p => pool.add(p));
+    return [...pool];
+  }
+
+  function renderTrainingPhrase() {
+    if (!phrases.length) return;
+    const phrase = phrases[currentIdx];
+    elPhraseText.textContent = `"${phrase}"`;
+    elCounter.textContent = `Phrase ${currentIdx + 1} of ${phrases.length}`;
+    elProgress.style.width = `${((currentIdx + 1) / phrases.length) * 100}%`;
+    elRulesCount.textContent = `✅ ${(state.sttRules || []).length} rules saved`;
+    // Reset result area
+    elResult.classList.add('hidden');
+    elOutcome.className = 'tr-outcome';
+    elOutcome.textContent = '';
+    btnRecord.classList.remove('recording');
+    elIcon.textContent = '🎤';
+    elLabel.textContent = 'Tap & Say It';
+    isTrainRecording = false;
+  }
+
+  function processTrainingResult(target, heard) {
+    const targetClean = target.toLowerCase().replace(/[.,!?]/g, '');
+    const heardClean  = heard.toLowerCase().replace(/[.,!?]/g, '');
+    const sim = findBestMatch(heardClean, targetClean);
+
+    elHeard.textContent  = `"${heard}"`;
+    elTarget.textContent = `"${target}"`;
+    elResult.classList.remove('hidden');
+
+    if (sim >= 0.80) {
+      // Perfect — no rule needed
+      elOutcome.className = 'tr-outcome success';
+      elOutcome.textContent = '✨ Great pronunciation! No correction needed.';
+      awardXP(5);
+      showToast('+5 XP — Pronounced correctly!');
+    } else if (sim >= 0.45) {
+      // Different enough — auto-save rule
+      // Find the most different word chunk between heard and target
+      const heardWords  = heardClean.split(' ').filter(w => w.length > 2);
+      const targetWords = targetClean.split(' ').filter(w => w.length > 2);
+      // Find heard words NOT in target — those are the mishearings
+      const misheard = heardWords.filter(w => !targetWords.some(tw => calculateSimilarity(w, tw) > 0.7));
+      const ruleFrom = misheard.length > 0 ? misheard.join(' ') : heard;
+
+      if (!state.sttRules) state.sttRules = [];
+      // Avoid duplicate rules
+      const alreadyExists = state.sttRules.some(r => r.heard.toLowerCase() === ruleFrom.toLowerCase());
+      if (!alreadyExists && ruleFrom.trim()) {
+        state.sttRules.push({ heard: ruleFrom, meant: target });
+        saveState();
+        renderSttRules();
+        sessionRulesSaved++;
+        elRulesCount.textContent = `✅ ${state.sttRules.length} rules saved`;
+        awardXP(10);
+        showToast(`🛠 Auto-rule saved! +10 XP`);
+      }
+      elOutcome.className = 'tr-outcome saved';
+      elOutcome.textContent = `🛠 Rule auto-saved: "${ruleFrom}" ➜ "${target}"`;
+    } else {
+      // Too different — probably noise
+      elOutcome.className = 'tr-outcome';
+      elOutcome.textContent = '⚠️ Too much noise. Try again in a quieter spot.';
+      elOutcome.style.color = 'var(--text-dim)';
+    }
+  }
+
+  function startTrainRecording() {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) { showToast('Speech recognition not supported.'); return; }
+    trainRec = new SpeechRec();
+    trainRec.lang = 'en-GB';
+    trainRec.continuous = false;
+    trainRec.interimResults = false;
+    trainRec.onresult = (e) => {
+      const heard = e.results[0][0].transcript.trim();
+      const target = phrases[currentIdx];
+      stopTrainRecording();
+      processTrainingResult(target, heard);
+    };
+    trainRec.onerror = (e) => {
+      stopTrainRecording();
+      showToast('Could not hear you. Try again.');
+    };
+    trainRec.onend = () => {
+      if (isTrainRecording) stopTrainRecording();
+    };
+    trainRec.start();
+    isTrainRecording = true;
+    btnRecord.classList.add('recording');
+    elIcon.textContent = '⏹️';
+    elLabel.textContent = 'Recording...';
+  }
+
+  function stopTrainRecording() {
+    if (trainRec) { try { trainRec.stop(); } catch(e) {} trainRec = null; }
+    isTrainRecording = false;
+    btnRecord.classList.remove('recording');
+    elIcon.textContent = '🎤';
+    elLabel.textContent = 'Tap & Say It';
+  }
+
+  // Open modal
+  btnTraining.addEventListener('click', () => {
+    phrases = buildTrainingPhrases();
+    currentIdx = 0;
+    sessionRulesSaved = 0;
+    renderTrainingPhrase();
+    modal.classList.remove('hidden');
+  });
+
+  btnClose.addEventListener('click', () => {
+    stopTrainRecording();
+    modal.classList.add('hidden');
+    if (sessionRulesSaved > 0) {
+      showToast(`🎓 Training complete! ${sessionRulesSaved} new rule${sessionRulesSaved > 1 ? 's' : ''} saved.`);
+    }
+  });
+
+  btnRecord.addEventListener('click', () => {
+    if (isTrainRecording) { stopTrainRecording(); return; }
+    startTrainRecording();
+  });
+
+  btnNext.addEventListener('click', () => {
+    if (currentIdx < phrases.length - 1) { currentIdx++; renderTrainingPhrase(); }
+    else { showToast('🏆 All phrases completed! Great session.'); }
+  });
+
+  btnPrev.addEventListener('click', () => {
+    if (currentIdx > 0) { currentIdx--; renderTrainingPhrase(); }
+  });
+
+  btnSkip.addEventListener('click', () => {
+    if (currentIdx < phrases.length - 1) { currentIdx++; renderTrainingPhrase(); }
+  });
 }
 
 // ── ANALYSIS LOGIC ──────────────────────────────────────────────────

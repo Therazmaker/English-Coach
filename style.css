@@ -455,6 +455,83 @@ aside {
   100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
 }
 
+/* ── TRAINING ROOM ──────────────────────────────────────────────── */
+.training-modal-content {
+  max-width: 480px !important;
+  height: auto !important;
+  max-height: 92vh !important;
+}
+.training-body { padding: 20px; }
+
+.training-progress-bar {
+  height: 4px; background: var(--border); border-radius: 4px; margin-bottom: 8px; overflow: hidden;
+}
+.training-progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green));
+  border-radius: 4px; transition: width 0.4s ease;
+}
+
+.training-phrase-card {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 20px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+.training-phrase-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--text-dim); margin-bottom: 12px;
+}
+.training-phrase-text {
+  font-size: 20px; font-weight: 600; color: var(--text);
+  line-height: 1.4;
+}
+
+.btn-train-record {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, var(--cyan), #0077b6);
+  border: none; border-radius: 50%; width: 90px; height: 90px;
+  color: var(--bg); font-size: 28px; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,200,255,0.4);
+  transition: all 0.2s ease;
+}
+.btn-train-record:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(0,200,255,0.6); }
+.btn-train-record.recording {
+  background: linear-gradient(135deg, var(--red), #c0392b);
+  box-shadow: 0 4px 20px rgba(255,80,80,0.5);
+  animation: recPulse 1s infinite;
+}
+@keyframes recPulse {
+  0%,100% { box-shadow: 0 4px 20px rgba(255,80,80,0.4); }
+  50%      { box-shadow: 0 4px 36px rgba(255,80,80,0.9); }
+}
+
+.training-result {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; margin-bottom: 16px;
+}
+.training-result-row {
+  display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
+}
+.tr-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: var(--text-dim); min-width: 48px; padding-top: 3px;
+}
+.tr-value { font-size: 14px; font-weight: 500; flex: 1; }
+.tr-bad  { color: var(--red); }
+.tr-good { color: var(--green); }
+.tr-outcome {
+  text-align: center; padding: 10px; border-radius: 8px;
+  font-weight: 600; font-size: 14px; margin-top: 6px;
+}
+.tr-outcome.success { background: var(--green-dim); color: var(--green); }
+.tr-outcome.saved   { background: var(--amber-dim); color: var(--amber); }
+
+.training-nav {
+  display: flex; gap: 10px; margin-top: 8px;
+}
+
 /* Make modals look better on desktop */
 @media (min-width: 768px) {
   .modal { display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); }
