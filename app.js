@@ -198,8 +198,30 @@ function init() {
 }
 
 function loadState() {
-  const saved = localStorage.getItem('ec_state');
-  if (saved) state = JSON.parse(saved);
+  const saved = localStorage.getItem('coachState');
+  if (saved) {
+    try {
+      state = JSON.parse(saved);
+      if (!state.calls) state.calls = [];
+      if (!state.learnedPhrases) state.learnedPhrases = [];
+      if (!state.xp) state.xp = 0;
+      
+      // DEDUPLICATION: Remove any duplicated sessions from history
+      const seen = new Set();
+      state.calls = state.calls.filter(c => {
+        // Use a combination of date and duration/wordcount as a unique key
+        const dStr = c.date ? c.date.substring(0, 19) : ''; // down to the second
+        const key = dStr + '_' + (c.duration||0) + '_' + (c.wordCount||0);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      saveState();
+      
+    } catch(e) {
+      console.warn('Error loading state', e);
+    }
+  }
 }
 
 function saveState() {
@@ -516,6 +538,7 @@ function setupEvents() {
     wordCount = 0;
     phrasesHitThisCall = 0;
     state.currentCallAlerts = [];
+    state._pendingCallId = null;
     if(statTime) statTime.textContent = '00:00';
     if(statWords) statWords.textContent = '0';
     if(statHits) statHits.textContent = '0';
@@ -625,6 +648,7 @@ function setupEvents() {
     } catch(err) {
       console.error('Analysis error:', err);
       showToast('Analysis failed. Your session is already backed up.');
+      btnAnalyze.disabled = false; // Allow retry
     }
     btnAnalyze.textContent = '✦ Analyze';
   });
