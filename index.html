@@ -129,6 +129,18 @@
           </div>
         </div>
 
+        <!-- Fix Misheard Words -->
+        <div class="mission-section">
+          <div class="panel-label">🛠 FIX STT MISTAKES</div>
+          <p class="mission-subtitle">El micrófono a veces escucha mal tus palabras. Dile qué hacer cuando escuche basura.</p>
+          <div class="custom-phrase-input" style="flex-direction: column; gap: 8px;">
+            <input type="text" id="stt-heard" placeholder="Cuando escuche (ej: Golden Broskill)">
+            <input type="text" id="stt-meant" placeholder="Cambiar por (ej: calling Bershka)">
+            <button id="btn-add-stt-rule" class="btn-secondary" style="padding: 8px;">Save Rule</button>
+          </div>
+          <div id="stt-rules-list" style="margin-top: 10px;"></div>
+        </div>
+
         <!-- Quick Tips -->
         <div class="mission-section">
           <div class="panel-label">💡 BERSHKA TONE GUIDE</div>

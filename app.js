@@ -210,6 +210,7 @@ function init() {
   loadState();
   updateXPUI();
   checkDailyMissions();
+  renderSttRules();
   setupSpeechRecognition();
   setupEvents();
 }
@@ -221,6 +222,7 @@ function loadState() {
       state = JSON.parse(saved);
       if (!state.calls) state.calls = [];
       if (!state.learnedPhrases) state.learnedPhrases = [];
+      if (!state.sttRules) state.sttRules = [];
       if (!state.xp) state.xp = 0;
       
       // DEDUPLICATION: Remove any duplicated sessions from history
@@ -253,6 +255,30 @@ function saveState() {
   }
   updateXPUI();
 }
+
+// ── STT RULES ─────────────────────────────────────────────────
+function renderSttRules() {
+  const el = $('stt-rules-list');
+  if (!el) return;
+  if (!state.sttRules || state.sttRules.length === 0) {
+    el.innerHTML = '<p style="font-size:12px; color:var(--text-dim);">No rules added yet.</p>';
+    return;
+  }
+  el.innerHTML = state.sttRules.map((r, idx) => `
+    <div class="tone-tip" style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:12px; color:var(--cyan);">"${r.heard}" ➜ "${r.meant}"</span>
+      <button onclick="removeSttRule(${idx})" style="background:transparent; border:none; color:var(--red); cursor:pointer;">✖</button>
+    </div>
+  `).join('');
+}
+
+window.removeSttRule = function(idx) {
+  if(state.sttRules) {
+    state.sttRules.splice(idx, 1);
+    saveState();
+    renderSttRules();
+  }
+};
 
 function getLevelInfo(xp) {
   let current = LEVELS[0];
@@ -308,6 +334,16 @@ function setupSpeechRecognition() {
 
     if (finalTranscript) {
       finalTranscript = finalTranscript.trim();
+      
+      // Apply user-defined STT Correction Rules
+      if (state.sttRules && state.sttRules.length > 0) {
+        state.sttRules.forEach(r => {
+           if (!r.heard) return;
+           const regex = new RegExp(r.heard.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+           finalTranscript = finalTranscript.replace(regex, r.meant);
+        });
+      }
+      
       if (elEmpty) elEmpty.style.display = 'none';
       
       // Check Daily Missions
@@ -789,6 +825,23 @@ function setupEvents() {
         btnAddPhrase.disabled = false;
         btnAddPhrase.textContent = 'Add';
       }
+    });
+  }
+
+  const btnAddSttRule = $('btn-add-stt-rule');
+  if (btnAddSttRule) {
+    btnAddSttRule.addEventListener('click', () => {
+       const heard = $('stt-heard').value.trim();
+       const meant = $('stt-meant').value.trim();
+       if (heard && meant) {
+          if (!state.sttRules) state.sttRules = [];
+          state.sttRules.push({ heard, meant });
+          saveState();
+          renderSttRules();
+          $('stt-heard').value = '';
+          $('stt-meant').value = '';
+          showToast("Rule saved! The mic will now autocorrect this.");
+       }
     });
   }
 }
