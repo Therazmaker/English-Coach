@@ -142,10 +142,19 @@ function findBestMatch(transcript, target) {
   
   let bestSim = 0;
   const maxLoops = Math.max(1, tWords.length - mWords.length + 1);
+  
   for (let i = 0; i < maxLoops; i++) {
-    const chunk = tWords.slice(i, i + mWords.length + 1).join(' '); // Look at slightly larger chunk
-    const sim = calculateSimilarity(chunk, target);
-    if (sim > bestSim) bestSim = sim;
+    // Test chunks of exact size, size-1, and size+1
+    const chunkExact = tWords.slice(i, i + mWords.length).join(' ');
+    const chunkPlus = tWords.slice(i, i + mWords.length + 1).join(' ');
+    const chunkMinus = tWords.slice(i, Math.max(1, i + mWords.length - 1)).join(' ');
+
+    const simExact = calculateSimilarity(chunkExact, target);
+    const simPlus = calculateSimilarity(chunkPlus, target);
+    const simMinus = calculateSimilarity(chunkMinus, target);
+    
+    const localBest = Math.max(simExact, simPlus, simMinus);
+    if (localBest > bestSim) bestSim = localBest;
   }
   return Math.max(bestSim, calculateSimilarity(transcript, target));
 }
@@ -310,7 +319,7 @@ function setupSpeechRecognition() {
             const targetClean = m.text.toLowerCase().replace(/[.,!?]/g, '');
             const sim = findBestMatch(cleanTranscript, targetClean);
             
-            if (cleanTranscript.includes(targetClean) || sim >= 0.85) {
+            if (cleanTranscript.includes(targetClean) || sim >= 0.80) {
               m.hit = true;
               missionCompleted = true;
               phrasesHitThisCall++;
@@ -332,7 +341,7 @@ function setupSpeechRecognition() {
               }
               
               awardXP(10);
-            } else if (sim >= 0.60 && sim < 0.85) {
+            } else if (sim >= 0.65 && sim < 0.80) {
                // Pronunciation Error (Near Miss)
                pronunciationAlerts.push({
                  target: m.text,
