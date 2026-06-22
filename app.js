@@ -8,6 +8,16 @@ const OLLAMA_API   = 'https://corsproxy.io/?https://ollama.com/api/chat';
 const OLLAMA_KEY   = 'a749df26093a49c892fece6c0cf7ab36.w1UdR9t19ujmPA2Cycz964Rk';
 const OLLAMA_MODEL = 'gemma3:12b';
 
+const BASE_PHRASES = [
+  "How can I help you today",
+  "Let me check that for you",
+  "I apologize for the inconvenience",
+  "Your order will arrive shortly",
+  "Thank you for contacting Bershka",
+  "Can I have your order number",
+  "Is there anything else I can assist you with"
+];
+
 // ── LEVELS & XP ───────────────────────────────────────────────
 const LEVELS = [
   { level: 1, xpNeeded: 0,    title: 'Rookie Agent' },
@@ -22,7 +32,7 @@ const LEVELS = [
   { level:10, xpNeeded: 5000, title: 'Elite Coach' },
 ];
 
-let state = { xp: 0, calls: [] };
+let state = { xp: 0, calls: [], learnedPhrases: [], dailyMissions: [], lastMissionDate: null };
 
 // ── DOM ELEMENTS ──────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -35,6 +45,13 @@ const btnNew       = $('btn-new');
 const btnAnalyze   = $('btn-analyze');
 const btnHistory   = $('btn-history');
 const recDot       = $('rec-dot');
+
+const elVocabList    = $('vocab-list');
+const elPhraseList   = $('phrase-list');
+const btnRefreshPhrases = $('btn-refresh-phrases');
+const elPhraseCeleb  = $('phrase-celebration');
+const statHits       = $('stat-hits');
+let phrasesHitThisCall = 0;
 
 // ── AUDIO & RECOGNITION ───────────────────────────────────────
 let isRecording = false;
@@ -56,10 +73,55 @@ function formatTime(s) {
   return `${m}:${sec}`;
 }
 
+// ── MISSIONS & LEARNING ───────────────────────────────────────
+function checkDailyMissions() {
+  const today = new Date().toDateString();
+  if (state.lastMissionDate !== today || !state.dailyMissions || state.dailyMissions.length === 0) {
+    generateDailyMissions();
+  } else {
+    renderMissions();
+  }
+  renderVocabBank();
+}
+
+function generateDailyMissions() {
+  const pool = [...BASE_PHRASES, ...(state.learnedPhrases || [])];
+  // Shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  
+  state.dailyMissions = pool.slice(0, 3).map(p => ({ text: p, hit: false }));
+  state.lastMissionDate = new Date().toDateString();
+  saveState();
+  renderMissions();
+}
+
+function renderMissions() {
+  if (!elPhraseList) return;
+  elPhraseList.innerHTML = state.dailyMissions.map((m, idx) => `
+    <div class="phrase-card ${m.hit ? 'hit' : ''}" id="mission-${idx}">
+      <span>${m.text}</span>
+      <span class="status-icon">${m.hit ? '✅' : '🎯'}</span>
+    </div>
+  `).join('');
+}
+
+function renderVocabBank() {
+  if (!elVocabList) return;
+  if (!state.learnedPhrases || state.learnedPhrases.length === 0) {
+    elVocabList.innerHTML = `<p style="font-size:12px; color:var(--text-dim);">No vocabulary saved yet. Complete calls to learn new words!</p>`;
+    return;
+  }
+  elVocabList.innerHTML = state.learnedPhrases.map(v => `<span class="vocab-tag">${v}</span>`).join('');
+}
+
 // ── INITIALIZATION ────────────────────────────────────────────
 function init() {
   loadState();
   updateXPUI();
+  checkDailyMissions();
   setupSpeechRecognition();
   setupEvents();
 }
@@ -137,6 +199,39 @@ function setupSpeechRecognition() {
     if (finalTranscript) {
       finalTranscript = finalTranscript.trim();
       if (elEmpty) elEmpty.style.display = 'none';
+      
+      // Check Daily Missions
+      if (state.dailyMissions) {
+        let missionCompleted = false;
+        const cleanTranscript = finalTranscript.toLowerCase().replace(/[.,!?]/g, '');
+        
+        state.dailyMissions.forEach((m, idx) => {
+          if (!m.hit && cleanTranscript.includes(m.text.toLowerCase().replace(/[.,!?]/g, ''))) {
+            m.hit = true;
+            missionCompleted = true;
+            phrasesHitThisCall++;
+            if (statHits) statHits.textContent = phrasesHitThisCall;
+            
+            const card = $(`mission-${idx}`);
+            if (card) {
+              card.classList.add('hit');
+              card.querySelector('.status-icon').textContent = '✅';
+            }
+            
+            if (elPhraseCeleb) {
+              elPhraseCeleb.textContent = 'Phrase Hit! +10 XP';
+              elPhraseCeleb.classList.remove('hidden');
+              elPhraseCeleb.style.animation = 'none';
+              elPhraseCeleb.offsetHeight; /* trigger reflow */
+              elPhraseCeleb.style.animation = null;
+              setTimeout(() => elPhraseCeleb.classList.add('hidden'), 1500);
+            }
+            
+            awardXP(10);
+          }
+        });
+        if (missionCompleted) saveState();
+      }
       
       const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
       transcriptLines.push({ ts, text: finalTranscript });
@@ -322,8 +417,10 @@ function setupEvents() {
     
     secondsElapsed = 0;
     wordCount = 0;
+    phrasesHitThisCall = 0;
     if(statTime) statTime.textContent = '00:00';
     if(statWords) statWords.textContent = '0';
+    if(statHits) statHits.textContent = '0';
     if(callStats) callStats.classList.remove('hidden');
     
     if (callTimer) clearInterval(callTimer);
@@ -420,9 +517,15 @@ function setupEvents() {
   btnHistory.addEventListener('click', renderHistory);
   $('close-history').addEventListener('click', () => $('modal-history').classList.add('hidden'));
   $('close-analysis').addEventListener('click', () => $('modal-analysis').classList.add('hidden'));
+  if (btnRefreshPhrases) {
+    btnRefreshPhrases.addEventListener('click', () => {
+      generateDailyMissions();
+      showToast("Missions refreshed!");
+    });
+  }
 }
 
-// ── ANALYSIS ──────────────────────────────────────────────────
+// ── ANALYSIS LOGIC ──────────────────────────────────────────────────
 async function runAnalysis() {
   const text = transcriptLines.map(l => `[${l.ts}] ${l.text}`).join('\n');
   try {
@@ -451,7 +554,27 @@ Respond with exact structure: {"score":<0-100>,"scoreLabel":"<Label>","summary":
     const data = await res.json();
     let raw = data.message?.content?.trim() || '{}';
     raw = raw.replace(/```json|```/g, '').trim();
+    
+    // Fallback to extract JSON if ollama hallucinates wrapper text
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) raw = jsonMatch[0];
+    
     const result = JSON.parse(raw);
+
+    // Adaptive Learning: Save new vocabulary
+    if (result.vocabulary && Array.isArray(result.vocabulary)) {
+      if (!state.learnedPhrases) state.learnedPhrases = [];
+      let newVocabAdded = false;
+      result.vocabulary.forEach(v => {
+        if (typeof v === 'string' && !state.learnedPhrases.includes(v)) {
+          state.learnedPhrases.push(v);
+          newVocabAdded = true;
+        }
+      });
+      if (newVocabAdded) {
+        renderVocabBank();
+      }
+    }
 
     const oldLevel = getLevelInfo(state.xp).level;
     awardXP(result.xpEarned || 20);

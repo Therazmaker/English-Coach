@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- Prevents zoom on mobile -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#080B10">
-  <title>English Coach</title>
+  <title>English Coach — Bershka</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="style.css">
@@ -27,9 +26,9 @@
   <!-- Level Up Canvas -->
   <canvas id="particles-canvas"></canvas>
 
-  <div class="app-container">
-    
-    <!-- HEADER -->
+  <div class="app-shell">
+
+    <!-- ══ HEADER ════════════════════════════════════════════ -->
     <header>
       <div class="header-left">
         <div class="logo"><span class="rec-dot hidden" id="rec-dot"></span>🎙</div>
@@ -38,49 +37,99 @@
           <p id="level-title">Loading...</p>
         </div>
       </div>
-      <button id="btn-history" class="icon-btn">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-      </button>
-    </header>
 
-    <!-- XP BAR -->
-    <div class="xp-container">
-      <div class="xp-labels">
-        <span id="level-label">LVL 1</span>
-        <span id="xp-label">0 / 100 XP</span>
-      </div>
-      <div class="xp-track">
-        <div class="xp-fill" id="xp-fill" style="width: 0%"></div>
-      </div>
-    </div>
-
-    <!-- MAIN DASHBOARD -->
-    <main id="view-dashboard">
-      <div class="visualizer-container">
-        <canvas id="waveform"></canvas>
-      </div>
-
-      <div class="call-stats hidden" id="call-stats">
-        <div class="stat-mini"><span id="stat-time">00:00</span><br><small>TIME</small></div>
-        <div class="stat-mini"><span id="stat-words">0</span><br><small>WORDS</small></div>
-      </div>
-
-      <div class="transcript-box" id="transcript-box">
-        <div class="empty-state" id="empty-state">
-          Tap start to begin your call session.<br>Speak clearly in English.
+      <!-- XP BAR (in header for desktop) -->
+      <div class="xp-container">
+        <div class="xp-labels">
+          <span id="level-label">LVL 1</span>
+          <span id="xp-label">0 / 100 XP</span>
+        </div>
+        <div class="xp-track">
+          <div class="xp-fill" id="xp-fill" style="width: 0%"></div>
         </div>
       </div>
 
-      <div class="controls">
-        <button id="btn-start" class="btn-primary">▶ Start Call</button>
-        <button id="btn-pause" class="btn-secondary hidden">⏸ Pause</button>
-        <button id="btn-end" class="btn-danger hidden">■ End Call</button>
-        <button id="btn-new" class="btn-primary hidden">➕ New Call</button>
-        <button id="btn-analyze" class="btn-secondary hidden" disabled>✦ Analyze</button>
-      </div>
-    </main>
+      <button id="btn-history" class="icon-btn" title="Session History">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        History
+      </button>
+    </header>
 
-    <!-- ANALYSIS MODAL -->
+    <!-- ══ TWO-COLUMN MAIN LAYOUT ══════════════════════════════ -->
+    <div class="desktop-grid">
+
+      <!-- ── LEFT COLUMN: CALL CENTER ─────────────────────── -->
+      <main id="view-dashboard">
+
+        <div class="panel-label">📞 CALL CENTER</div>
+
+        <!-- Waveform Visualizer -->
+        <div class="visualizer-container">
+          <canvas id="waveform"></canvas>
+        </div>
+
+        <!-- Live Call Stats -->
+        <div class="call-stats hidden" id="call-stats">
+          <div class="stat-mini"><span id="stat-time">00:00</span><br><small>TIME</small></div>
+          <div class="stat-mini"><span id="stat-words">0</span><br><small>WORDS</small></div>
+          <div class="stat-mini"><span id="stat-hits">0</span><br><small>PHRASES HIT ✅</small></div>
+        </div>
+
+        <!-- Live Transcript -->
+        <div class="transcript-box" id="transcript-box">
+          <div class="empty-state" id="empty-state">
+            Press <strong>Start Call</strong> and speak clearly in English.<br>
+            Your live transcript and AI tips will appear here.
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+          <button id="btn-start" class="btn-primary">▶ Start Call</button>
+          <button id="btn-pause" class="btn-secondary hidden">⏸ Pause</button>
+          <button id="btn-end" class="btn-danger hidden">■ End Call</button>
+          <button id="btn-new" class="btn-primary hidden">➕ New Call</button>
+          <button id="btn-analyze" class="btn-secondary hidden" disabled>✦ Analyze</button>
+        </div>
+      </main>
+
+      <!-- ── RIGHT COLUMN: MISSION BOARD ───────────────────── -->
+      <aside id="mission-board">
+
+        <!-- Daily Missions -->
+        <div class="mission-section">
+          <div class="mission-header">
+            <div class="panel-label">🎯 TODAY'S PHRASES</div>
+            <button id="btn-refresh-phrases" class="icon-btn-sm" title="Get new phrases">↻</button>
+          </div>
+          <p class="mission-subtitle">Use these phrases during your calls. The app will detect them automatically!</p>
+          <div id="phrase-list">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+
+        <!-- Learned Vocabulary Bank -->
+        <div class="mission-section" id="vocab-bank-section">
+          <div class="panel-label">🧠 YOUR VOCAB BANK</div>
+          <p class="mission-subtitle">Expressions Ollama Coach saved for you to practice</p>
+          <div id="vocab-list">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+
+        <!-- Quick Tips -->
+        <div class="mission-section">
+          <div class="panel-label">💡 BERSHKA TONE GUIDE</div>
+          <div class="tone-tip">✅ <strong>Say:</strong> "How can I help you today?"</div>
+          <div class="tone-tip">✅ <strong>Say:</strong> "Absolutely, let me check that for you!"</div>
+          <div class="tone-tip">❌ <strong>Avoid:</strong> "What do you want?"</div>
+          <div class="tone-tip">❌ <strong>Avoid:</strong> "I don't know."</div>
+        </div>
+
+      </aside>
+    </div>
+
+    <!-- ══ ANALYSIS MODAL ════════════════════════════════════ -->
     <div id="modal-analysis" class="modal hidden">
       <div class="modal-content">
         <div class="modal-header">
@@ -93,7 +142,7 @@
       </div>
     </div>
 
-    <!-- HISTORY MODAL -->
+    <!-- ══ HISTORY MODAL ═════════════════════════════════════ -->
     <div id="modal-history" class="modal hidden">
       <div class="modal-content">
         <div class="modal-header">
@@ -111,12 +160,10 @@
               <div class="stat-lbl">Avg Score</div>
             </div>
           </div>
-          
+
           <div class="chart-container">
             <h3 style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px; letter-spacing: 1px;">SCORE TREND</h3>
-            <div class="trend-bars" id="trend-bars">
-              <!-- Bars injected via JS -->
-            </div>
+            <div class="trend-bars" id="trend-bars"></div>
           </div>
 
           <h3 style="font-size: 11px; color: var(--text-dim); margin: 20px 0 12px; letter-spacing: 1px;">PAST SESSIONS</h3>
@@ -127,6 +174,9 @@
 
     <!-- NOTIFICATION TOAST -->
     <div id="toast" class="toast hidden"></div>
+
+    <!-- PHRASE HIT CELEBRATION -->
+    <div id="phrase-celebration" class="phrase-celebration hidden"></div>
 
   </div>
 

@@ -58,14 +58,24 @@ body {
   z-index: 9999;
 }
 
-.app-container {
+.app-shell {
   width: 100%;
-  max-width: 500px;
-  height: 100%;
+  max-width: 1200px; /* Desktop width */
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: transparent;
   position: relative;
+  padding: 20px;
+  gap: 20px;
+}
+
+.desktop-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px; /* Two columns */
+  gap: 20px;
+  flex: 1;
+  min-height: 0; /* Important for scrollable areas in flex/grid */
 }
 
 /* ── HEADER ──────────────────────── */
@@ -127,11 +137,20 @@ header {
   box-shadow: 0 0 12px rgba(110,231,255,0.4);
 }
 
-/* ── DASHBOARD ───────────────────── */
+/* ── DASHBOARD (LEFT COLUMN) ───────────────────── */
 main {
-  flex: 1; display: flex; flex-direction: column;
-  padding: 0 20px 20px 20px; overflow: hidden;
+  display: flex; flex-direction: column;
+  background: rgba(14, 18, 25, 0.4);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+  padding: 20px; overflow: hidden;
   gap: 16px;
+}
+
+.panel-label {
+  font-size: 11px; font-weight: 700; color: var(--text-dim);
+  letter-spacing: 2px; margin-bottom: 8px; font-family: var(--mono);
 }
 
 .visualizer-container {
@@ -290,3 +309,87 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   animation: slideUp 0.3s ease; z-index: 1000;
 }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* ── MISSION BOARD (RIGHT COLUMN) ──────────────── */
+aside {
+  display: flex; flex-direction: column; gap: 20px;
+  overflow-y: auto;
+  padding-right: 10px; /* Space for scrollbar */
+}
+
+.mission-section {
+  background: rgba(14, 18, 25, 0.4);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+}
+
+.mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.mission-subtitle { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.4; }
+
+.phrase-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px; margin-bottom: 8px;
+  font-size: 14px; color: var(--text);
+  display: flex; justify-content: space-between; align-items: center;
+  transition: all 0.3s ease;
+}
+
+.phrase-card.hit {
+  background: var(--green-dim);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.phrase-card .status-icon { font-size: 16px; opacity: 0.3; }
+.phrase-card.hit .status-icon { opacity: 1; }
+
+.vocab-tag {
+  display: inline-block;
+  background: var(--surface-elevated);
+  border: 1px solid var(--purple);
+  color: var(--purple);
+  padding: 4px 8px; border-radius: 16px;
+  font-size: 12px; font-family: var(--mono);
+  margin: 0 4px 4px 0;
+}
+
+.tone-tip {
+  font-size: 13px; line-height: 1.5; margin-bottom: 8px;
+  color: var(--text); background: var(--surface);
+  padding: 10px; border-radius: 6px; border-left: 3px solid var(--border);
+}
+
+.icon-btn-sm {
+  background: none; border: none; color: var(--text-dim);
+  cursor: pointer; padding: 4px; border-radius: 4px;
+  font-size: 16px; transition: color 0.2s;
+}
+.icon-btn-sm:hover { color: var(--cyan); }
+
+.phrase-celebration {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 48px; font-weight: bold; color: var(--green);
+  text-shadow: 0 0 20px var(--green);
+  pointer-events: none; z-index: 1000;
+  animation: popOut 1.5s forwards;
+}
+
+@keyframes popOut {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+  20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+}
+
+/* Make modals look better on desktop */
+@media (min-width: 768px) {
+  .modal { display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); }
+  .modal-content { width: 100%; max-width: 600px; height: 80vh; max-height: 800px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; }
+  .modal-body { overflow-y: auto; padding-bottom: 20px; }
+  .modal-header { position: static; }
+}
