@@ -77,6 +77,48 @@ function formatTime(s) {
   return `${m}:${sec}`;
 }
 
+// ── FUZZY MATCHING (PRONUNCIATION ENGINE) ─────────────────────
+function levenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
+  for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) == a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+function calculateSimilarity(str1, str2) {
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  const longerLength = longer.length;
+  if (longerLength === 0) return 1.0;
+  return (longerLength - levenshteinDistance(longer, shorter)) / parseFloat(longerLength);
+}
+
+function findBestMatch(transcript, target) {
+  const tWords = transcript.split(' ');
+  const mWords = target.split(' ');
+  if (tWords.length < Math.max(1, mWords.length - 3)) return calculateSimilarity(transcript, target);
+  
+  let bestSim = 0;
+  const maxLoops = Math.max(1, tWords.length - mWords.length + 1);
+  for (let i = 0; i < maxLoops; i++) {
+    const chunk = tWords.slice(i, i + mWords.length + 1).join(' '); // Look at slightly larger chunk
+    const sim = calculateSimilarity(chunk, target);
+    if (sim > bestSim) bestSim = sim;
+  }
+  return Math.max(bestSim, calculateSimilarity(transcript, target));
+}
+
 // ── MISSIONS & LEARNING ───────────────────────────────────────
 function checkDailyMissions() {
   const today = new Date().toDateString();
@@ -207,34 +249,67 @@ function setupSpeechRecognition() {
       // Check Daily Missions
       if (state.dailyMissions) {
         let missionCompleted = false;
+        let pronunciationAlerts = [];
         const cleanTranscript = finalTranscript.toLowerCase().replace(/[.,!?]/g, '');
         
         state.dailyMissions.forEach((m, idx) => {
-          if (!m.hit && cleanTranscript.includes(m.text.toLowerCase().replace(/[.,!?]/g, ''))) {
-            m.hit = true;
-            missionCompleted = true;
-            phrasesHitThisCall++;
-            if (statHits) statHits.textContent = phrasesHitThisCall;
+          if (!m.hit) {
+            const targetClean = m.text.toLowerCase().replace(/[.,!?]/g, '');
+            const sim = findBestMatch(cleanTranscript, targetClean);
             
-            const card = $(`mission-${idx}`);
-            if (card) {
-              card.classList.add('hit');
-              card.querySelector('.status-icon').textContent = '✅';
+            if (cleanTranscript.includes(targetClean) || sim >= 0.85) {
+              m.hit = true;
+              missionCompleted = true;
+              phrasesHitThisCall++;
+              if (statHits) statHits.textContent = phrasesHitThisCall;
+              
+              const card = $(`mission-${idx}`);
+              if (card) {
+                card.classList.add('hit');
+                card.querySelector('.status-icon').textContent = '✅';
+              }
+              
+              if (elPhraseCeleb) {
+                elPhraseCeleb.textContent = 'Phrase Hit! +10 XP';
+                elPhraseCeleb.classList.remove('hidden');
+                elPhraseCeleb.style.animation = 'none';
+                elPhraseCeleb.offsetHeight; /* trigger reflow */
+                elPhraseCeleb.style.animation = null;
+                setTimeout(() => elPhraseCeleb.classList.add('hidden'), 1500);
+              }
+              
+              awardXP(10);
+            } else if (sim >= 0.60 && sim < 0.85) {
+               // Pronunciation Error (Near Miss)
+               pronunciationAlerts.push({
+                 target: m.text,
+                 heard: finalTranscript,
+                 sim: Math.round(sim * 100)
+               });
             }
-            
-            if (elPhraseCeleb) {
-              elPhraseCeleb.textContent = 'Phrase Hit! +10 XP';
-              elPhraseCeleb.classList.remove('hidden');
-              elPhraseCeleb.style.animation = 'none';
-              elPhraseCeleb.offsetHeight; /* trigger reflow */
-              elPhraseCeleb.style.animation = null;
-              setTimeout(() => elPhraseCeleb.classList.add('hidden'), 1500);
-            }
-            
-            awardXP(10);
           }
         });
         if (missionCompleted) saveState();
+        
+        // Render Alerts
+        pronunciationAlerts.forEach(alert => {
+          if (!state.currentCallAlerts) state.currentCallAlerts = [];
+          state.currentCallAlerts.push(alert);
+
+          const alertEl = document.createElement('div');
+          alertEl.className = 't-line scored-BAD';
+          alertEl.style.marginTop = '8px';
+          alertEl.innerHTML = `
+            <div class="t-text" style="color:var(--amber); font-size: 12px; font-weight: bold;">
+               ⚠️ Pronunciation Alert (${alert.sim}% match)
+            </div>
+            <div class="t-hint" style="color:var(--text); background:transparent; padding: 4px 0 0 0;">
+               You tried to say: <i style="color:var(--cyan);">"${alert.target}"</i><br>
+               System heard: <i>"${alert.heard}"</i>
+            </div>`;
+          elTranscript.appendChild(alertEl);
+          elTranscript.scrollTop = elTranscript.scrollHeight;
+        });
       }
       
       const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
@@ -422,6 +497,7 @@ function setupEvents() {
     secondsElapsed = 0;
     wordCount = 0;
     phrasesHitThisCall = 0;
+    state.currentCallAlerts = [];
     if(statTime) statTime.textContent = '00:00';
     if(statWords) statWords.textContent = '0';
     if(statHits) statHits.textContent = '0';
@@ -585,6 +661,13 @@ function setupEvents() {
 // ── ANALYSIS LOGIC ──────────────────────────────────────────────────
 async function runAnalysis() {
   const text = transcriptLines.map(l => `[${l.ts}] ${l.text}`).join('\n');
+  
+  const contextAlerts = state.currentCallAlerts && state.currentCallAlerts.length > 0 
+    ? `\nIMPORTANT CONTEXT: The user had pronunciation errors (the system transcribed them wrongly). Here are their attempts:\n` + 
+      state.currentCallAlerts.map(a => `- Tried to say: "${a.target}" but it sounded like: "${a.heard}"`).join('\n') +
+      `\nFocus heavily on giving phonetics tips on how to correctly pronounce the specific words they failed on.`
+    : '';
+
   try {
     const res = await fetch(OLLAMA_API, {
       method: 'POST',
@@ -596,7 +679,7 @@ async function runAnalysis() {
         model: OLLAMA_MODEL, stream: false,
         messages: [{
           role: 'user',
-          content: `You are an expert British English coach for a Bershka customer service agent. The brand tone is friendly, modern, and close to the customer (polite but not overly formal or stiff).
+          content: `You are an expert British English coach for a Bershka customer service agent. The brand tone is friendly, modern, and close to the customer (polite but not overly formal or stiff). ${contextAlerts}
 Analyze this transcript. If you see nonsensical phrases, assume it's a pronunciation error where the speech-to-text failed, and point it out.
 Respond ONLY in valid JSON.
 
