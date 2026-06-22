@@ -1026,74 +1026,47 @@ function setupTrainingRoom() {
       } else {
         clearInterval(countdownInterval);
         elIcon.textContent = '⏹️';
-        elLabel.textContent = 'Listening... 5s';
-
+        elLabel.textContent = 'Listening...';
+        
         trainRec = new SpeechRec();
         trainRec.lang = 'en-GB';
-        trainRec.continuous = true;
-        trainRec.interimResults = true;
-        trainRec.maxAlternatives = 3;
-
-        let accumulated = '';
-        let windowSecs = 5;
-
-        const windowInterval = setInterval(() => {
-          windowSecs--;
-          if (windowSecs > 0) {
-            elLabel.textContent = `Listening... ${windowSecs}s`;
-          } else {
-            clearInterval(windowInterval);
-            elLabel.textContent = 'Processing...';
-          }
-        }, 1000);
-
-        let finalAccumulated = '';
+        trainRec.continuous = false;   // Stable: stops naturally when user stops speaking
+        trainRec.interimResults = false;
+        trainRec.maxAlternatives = 5;  // Core feature to fix bad STT noise
 
         trainRec.onresult = (e) => {
-          // Rebuild from scratch on every event using isFinal flag
-          // isFinal results are committed; interim results are the current "in-progress" piece
-          let interim = '';
-          finalAccumulated = '';
-          for (let i = 0; i < e.results.length; i++) {
-            if (e.results[i].isFinal) {
-              finalAccumulated += e.results[i][0].transcript + ' ';
-            } else {
-              interim += e.results[i][0].transcript;
+          const target = phrases[currentIdx];
+          const targetClean = target.toLowerCase().replace(/[.,!?]/g, '');
+          
+          // Check all alternatives and pick the one closest to the target phrase
+          let bestHeard = e.results[0][0].transcript.trim();
+          let bestSim = calculateSimilarity(bestHeard.toLowerCase(), targetClean);
+          
+          for (let j = 1; j < e.results[0].length; j++) {
+            const alt = e.results[0][j].transcript.trim();
+            const altSim = calculateSimilarity(alt.toLowerCase(), targetClean);
+            if (altSim > bestSim) { 
+              bestSim = altSim; 
+              bestHeard = alt; 
             }
           }
-          accumulated = (finalAccumulated + interim).trim();
+          
+          stopTrainRecording();
+          processTrainingResult(target, bestHeard);
         };
 
         trainRec.onerror = (e) => {
-          clearInterval(windowInterval);
-          if (trainRec) { try { trainRec.stop(); } catch(_) {} trainRec = null; }
-          isTrainRecording = false;
-          btnRecord.classList.remove('recording');
-          elIcon.textContent = '🎤';
-          elLabel.textContent = 'Tap & Say It';
-          if (e.error !== 'no-speech') showToast('Mic error: ' + e.error);
-        };
-
-        // onend fires after the 5s auto-stop — process the full accumulated phrase
-        trainRec.onend = () => {
-          clearInterval(windowInterval);
-          isTrainRecording = false;
-          btnRecord.classList.remove('recording');
-          elIcon.textContent = '🎤';
-          elLabel.textContent = 'Tap & Say It';
-          if (accumulated) {
-            processTrainingResult(phrases[currentIdx], accumulated);
+          stopTrainRecording();
+          if (e.error === 'no-speech') {
+            showToast('Nothing detected. Speak louder and try again.');
           } else {
-            showToast('Nothing detected. Speak a bit louder and try again.');
+            showToast('Mic error: ' + e.error);
           }
         };
 
-        try { trainRec.start(); } catch(e) { stopTrainRecording(); return; }
+        trainRec.onend = () => { if (isTrainRecording) stopTrainRecording(); };
 
-        // Hard stop after 5 seconds — user has the full window to finish the phrase
-        setTimeout(() => {
-          if (trainRec) { try { trainRec.stop(); } catch(_) {} }
-        }, 5000);
+        try { trainRec.start(); } catch(err) { stopTrainRecording(); }
       }
     }, 1000);
   }
