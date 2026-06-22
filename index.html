@@ -152,31 +152,59 @@
       </div>
     </div>
 
-    <!-- ══ HISTORY MODAL ═════════════════════════════════════ -->
-    <div id="modal-history" class="modal hidden">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>Session History</h2>
-          <button class="close-btn" id="close-history">✕</button>
+    <!-- ══ FULLSCREEN HISTORY DASHBOARD ═══════════════════════ -->
+    <div id="view-history" class="fullscreen-view hidden">
+      <header class="history-header">
+        <div class="header-left">
+          <h2>📊 Analytics & History</h2>
         </div>
-        <div class="modal-body" id="history-content">
-          <div class="stats-grid">
+        <button class="icon-btn close-history-btn" id="close-history" style="width:auto; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);">✕ Close</button>
+      </header>
+
+      <div class="history-grid">
+        <!-- Left: Charts & Insights -->
+        <div class="history-left-panel">
+          
+          <div class="stats-grid-4">
             <div class="stat-card">
-              <div class="stat-val" id="stat-calls">0</div>
-              <div class="stat-lbl">Calls</div>
+              <div class="stat-val" id="fs-stat-calls">0</div>
+              <div class="stat-lbl">Total Calls</div>
             </div>
             <div class="stat-card">
-              <div class="stat-val" id="stat-avg">-</div>
+              <div class="stat-val" id="fs-stat-avg">-</div>
               <div class="stat-lbl">Avg Score</div>
             </div>
+            <div class="stat-card">
+              <div class="stat-val" id="fs-stat-words">0</div>
+              <div class="stat-lbl">Total Words</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val" id="fs-stat-xp">0</div>
+              <div class="stat-lbl">Total XP</div>
+            </div>
           </div>
 
-          <div class="chart-container">
-            <h3 style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px; letter-spacing: 1px;">SCORE TREND</h3>
-            <div class="trend-bars" id="trend-bars"></div>
+          <div class="chart-box">
+            <div class="panel-label">SCORE EVOLUTION (LAST 15 CALLS)</div>
+            <div class="trend-bars" id="fs-trend-score"></div>
           </div>
 
-          <h3 style="font-size: 11px; color: var(--text-dim); margin: 20px 0 12px; letter-spacing: 1px;">PAST SESSIONS</h3>
+          <div class="chart-box">
+            <div class="panel-label">WORDS PER CALL (FLUENCY TREND)</div>
+            <div class="trend-bars" id="fs-trend-words"></div>
+          </div>
+
+          <div class="insights-box">
+            <div class="panel-label">🧠 TOP MASTERED PHRASES & VOCABULARY</div>
+            <p class="mission-subtitle" style="margin-bottom:12px;">Extracted from your historical data</p>
+            <div id="fs-top-words" class="top-words-list"></div>
+          </div>
+
+        </div>
+
+        <!-- Right: Timeline -->
+        <div class="history-right-panel">
+          <div class="panel-label">SESSION TIMELINE</div>
           <div class="history-list" id="history-list"></div>
         </div>
       </div>

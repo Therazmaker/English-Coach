@@ -515,11 +515,11 @@ function setupEvents() {
       alert("Click Error: " + err.message);
     }
     btnAnalyze.textContent = '✦ Analyze';
-    btnAnalyze.disabled = false;
+    btnAnalyze.addEventListener('click', runAnalysis);
   });
 
   btnHistory.addEventListener('click', renderHistory);
-  $('close-history').addEventListener('click', () => $('modal-history').classList.add('hidden'));
+  $('close-history').addEventListener('click', () => $('view-history').classList.add('hidden'));
   $('close-analysis').addEventListener('click', () => $('modal-analysis').classList.add('hidden'));
   if (btnRefreshPhrases) {
     btnRefreshPhrases.addEventListener('click', () => {
@@ -641,6 +641,7 @@ Respond with exact structure: {"score":<0-100>,"scoreLabel":"<Label>","summary":
 
     state.calls.unshift({
       date: new Date().toISOString(),
+      wordCount: wordCount || 0,
       ...result // Guardo el objeto de análisis COMPLETO (mejoras, vocabulario, etc.)
     });
     saveState();
@@ -680,38 +681,80 @@ function renderAnalysisModal(data) {
 }
 
 function renderHistory() {
-  $('stat-calls').textContent = state.calls.length;
+  $('fs-stat-calls').textContent = state.calls.length;
   if(state.calls.length > 0) {
-    const avg = Math.round(state.calls.reduce((s,c)=>s+(c.score||0),0)/state.calls.length);
-    $('stat-avg').textContent = avg;
-    $('stat-avg').style.color = avg >= 75 ? 'var(--green)' : avg >= 50 ? 'var(--amber)' : 'var(--red)';
+    const totalScore = state.calls.reduce((s,c)=>s+(c.score||0),0);
+    const avg = Math.round(totalScore/state.calls.length);
+    $('fs-stat-avg').textContent = avg;
+    $('fs-stat-avg').style.color = avg >= 75 ? 'var(--green)' : avg >= 50 ? 'var(--amber)' : 'var(--red)';
+    
+    const totalWords = state.calls.reduce((s,c)=>s+(c.wordCount||0),0);
+    $('fs-stat-words').textContent = totalWords;
+    
+    const totalXP = state.calls.reduce((s,c)=>s+(c.xpEarned||0),0);
+    $('fs-stat-xp').textContent = totalXP;
   }
 
-  // Draw Trend Chart (últimas 10 llamadas)
-  const recentCalls = state.calls.slice(0, 10).reverse();
-  $('trend-bars').innerHTML = recentCalls.map(c => {
+  // Draw Trend Charts (últimas 15 llamadas)
+  const recentCalls = state.calls.slice(0, 15).reverse();
+  
+  // Score Chart
+  $('fs-trend-score').innerHTML = recentCalls.map(c => {
     const score = c.score || 0;
     const cl = score >= 75 ? 'trend-GOOD' : score >= 50 ? 'trend-OK' : 'trend-BAD';
     return `<div class="trend-bar ${cl}" style="height: ${Math.max(5, score)}%"><span>${score}</span></div>`;
   }).join('');
+  
+  // Words per Call Chart
+  const maxWords = Math.max(...recentCalls.map(c => c.wordCount || 10));
+  $('fs-trend-words').innerHTML = recentCalls.map(c => {
+    const words = c.wordCount || 0;
+    const h = Math.max(5, (words / maxWords) * 100);
+    return `<div class="trend-bar trend-NEUTRAL" style="height: ${h}%"><span>${words}</span></div>`;
+  }).join('');
+
+  // Data Mining: Top Mastered Phrases
+  const vocabFreq = {};
+  state.calls.forEach(c => {
+    if (c.vocabulary && Array.isArray(c.vocabulary)) {
+      c.vocabulary.forEach(v => {
+        if (typeof v === 'string') {
+          const w = v.toLowerCase();
+          vocabFreq[w] = (vocabFreq[w] || 0) + 1;
+        }
+      });
+    }
+  });
+  
+  const sortedVocab = Object.keys(vocabFreq)
+    .sort((a,b) => vocabFreq[b] - vocabFreq[a])
+    .slice(0, 15);
+    
+  if (sortedVocab.length > 0) {
+    $('fs-top-words').innerHTML = sortedVocab.map(v => 
+      `<div class="top-word-tag">${v} <span class="top-word-count">x${vocabFreq[v]}</span></div>`
+    ).join('');
+  } else {
+    $('fs-top-words').innerHTML = '<p class="mission-subtitle">No vocabulary data yet. Complete more calls!</p>';
+  }
 
   $('history-list').innerHTML = state.calls.map((c, idx) => {
     const d = new Date(c.date);
     const dStr = `${d.toLocaleDateString('en-GB')} ${d.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'})}`;
     const score = c.score || 0;
     const color = score >= 75 ? 'var(--green)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
-    const sum = c.summary ? c.summary.substring(0,40) + '...' : 'Review details';
+    const sum = c.summary ? c.summary.substring(0,60) + '...' : 'Review details';
     
     return `<div class="history-item" onclick="openHistoricalAnalysis(${idx})">
       <div>
         <div class="hi-date">${dStr}</div>
-        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">${sum} <span style="color:var(--cyan)">👉</span></div>
+        <div style="font-size:12px; color:var(--text-dim); margin-top:6px;">${sum} <span style="color:var(--cyan)">👉</span></div>
       </div>
       <div class="hi-score" style="color:${color}">${score}</div>
     </div>`;
   }).join('');
 
-  $('modal-history').classList.remove('hidden');
+  $('view-history').classList.remove('hidden');
 }
 
 window.openHistoricalAnalysis = function(idx) {
