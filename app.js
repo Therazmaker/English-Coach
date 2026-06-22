@@ -3,10 +3,35 @@
 // ================================================================
 
 // ── CONFIG ────────────────────────────────────────────────────
-// Using corsproxy.io to bypass browser CORS constraints on GitHub pages
-const OLLAMA_API   = 'https://corsproxy.io/?https://ollama.com/api/chat';
+// Multiple CORS proxies as fallbacks (in case one times out)
+const OLLAMA_PROXIES = [
+  'https://corsproxy.io/?url=https://api.ollama.ai/api/chat',
+  'https://api.allorigins.win/raw?url=https://api.ollama.ai/api/chat',
+  'https://corsproxy.io/?https://ollama.com/api/chat',
+];
 const OLLAMA_KEY   = 'a749df26093a49c892fece6c0cf7ab36.w1UdR9t19ujmPA2Cycz964Rk';
 const OLLAMA_MODEL = 'gemma3:12b';
+
+async function fetchWithFallback(body) {
+  for (let i = 0; i < OLLAMA_PROXIES.length; i++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout per proxy
+      const res = await fetch(OLLAMA_PROXIES[i], {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OLLAMA_KEY },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (res.ok) return res;
+      console.warn(`[Coach] Proxy ${i+1} returned ${res.status}, trying next...`);
+    } catch (e) {
+      console.warn(`[Coach] Proxy ${i+1} failed:`, e.message);
+    }
+  }
+  throw new Error('All proxies failed. Check your internet connection.');
+}
 
 const BASE_PHRASES = [
   "I apologize for the delay with your order",
@@ -354,19 +379,12 @@ function setupSpeechRecognition() {
 async function getQuickHint(text, lineEl) {
   if (text.split(' ').length < 4) return;
   try {
-    const res = await fetch(OLLAMA_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + OLLAMA_KEY,
-      },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL, stream: false,
-        messages: [{
-          role: 'user',
-          content: `You are a British English coach for a Bershka customer service agent. The tone should be friendly, modern and approachable, not overly formal. If the phrase makes no sense, it's likely a pronunciation error. Evaluate this phrase in ONE short sentence.\nRate: GOOD / OK / BAD. Format strictly: RATING|tip\nPhrase: "${text}"`
-        }]
-      })
+    const res = await fetchWithFallback({
+      model: OLLAMA_MODEL, stream: false,
+      messages: [{
+        role: 'user',
+        content: `You are a British English coach for a Bershka customer service agent. The tone should be friendly, modern and approachable, not overly formal. If the phrase makes no sense, it's likely a pronunciation error. Evaluate this phrase in ONE short sentence.\nRate: GOOD / OK / BAD. Format strictly: RATING|tip\nPhrase: "${text}"`
+      }]
     });
     const data = await res.json();
     const reply = data.message?.content?.trim() || '';
@@ -559,6 +577,24 @@ function setupEvents() {
     }
     
     if (callTimer) clearInterval(callTimer);
+    
+    // ── AUTO-BACKUP: Save raw session immediately on End Call ──
+    if (transcriptLines.length > 0) {
+      state._pendingCallId = Date.now();
+      state.calls.unshift({
+        _id: state._pendingCallId,
+        date: new Date().toISOString(),
+        wordCount: wordCount || 0,
+        duration: secondsElapsed,
+        score: null,          // null = not yet analyzed
+        summary: 'Session recorded — awaiting AI analysis',
+        rawTranscript: transcriptLines.map(l => `[${l.ts}] ${l.text}`).join('\n'),
+        phrasesHit: phrasesHitThisCall,
+        pronunciationAlerts: state.currentCallAlerts || []
+      });
+      saveState();
+      showToast('Session saved! Press ✦ Analyze for full report.');
+    }
   });
 
   btnNew.addEventListener('click', () => {
@@ -583,15 +619,14 @@ function setupEvents() {
   btnAnalyze.addEventListener('click', async () => {
     btnAnalyze.disabled = true;
     btnAnalyze.classList.remove('btn-analyze-magic');
-    const originalText = btnAnalyze.textContent;
     btnAnalyze.textContent = 'Analyzing...';
     try {
       await runAnalysis();
     } catch(err) {
-      alert("Click Error: " + err.message);
+      console.error('Analysis error:', err);
+      showToast('Analysis failed. Your session is already backed up.');
     }
     btnAnalyze.textContent = '✦ Analyze';
-    btnAnalyze.addEventListener('click', runAnalysis);
   });
 
   btnHistory.addEventListener('click', renderHistory);
@@ -613,16 +648,12 @@ function setupEvents() {
       btnAddPhrase.textContent = '...';
       
       try {
-        const res = await fetch(OLLAMA_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OLLAMA_KEY },
-          body: JSON.stringify({
-            model: OLLAMA_MODEL, stream: false,
-            messages: [{
-              role: 'user',
-              content: `Translate the following Spanish phrase into a natural, friendly, British English customer service phrase for Bershka. Respond ONLY with the translated English phrase, no quotes, no explanations.\nPhrase: "${text}"`
-            }]
-          })
+        const res = await fetchWithFallback({
+          model: OLLAMA_MODEL, stream: false,
+          messages: [{
+            role: 'user',
+            content: `Translate the following Spanish phrase into a natural, friendly, British English customer service phrase for Bershka. Respond ONLY with the translated English phrase, no quotes, no explanations.\nPhrase: "${text}"`
+          }]
         });
         const data = await res.json();
         let englishPhrase = data.message?.content?.trim() || '';
@@ -669,17 +700,11 @@ async function runAnalysis() {
     : '';
 
   try {
-    const res = await fetch(OLLAMA_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + OLLAMA_KEY,
-      },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL, stream: false,
-        messages: [{
-          role: 'user',
-          content: `You are an expert British English coach for a Bershka customer service agent. The brand tone is friendly, modern, and close to the customer (polite but not overly formal or stiff). ${contextAlerts}
+    const res = await fetchWithFallback({
+      model: OLLAMA_MODEL, stream: false,
+      messages: [{
+        role: 'user',
+        content: `You are an expert British English coach for a Bershka customer service agent. The brand tone is friendly, modern, and close to the customer (polite but not overly formal or stiff). ${contextAlerts}
 Analyze this transcript. If you see nonsensical phrases, assume it's a pronunciation error where the speech-to-text failed, and point it out.
 Respond ONLY in valid JSON.
 
@@ -687,8 +712,7 @@ Transcript:
 ${text}
 
 Respond with exact structure: {"score":<0-100>,"scoreLabel":"<Label>","summary":"<summary>","strengths":["<s1>","<s2>"],"improvements":[{"original":"<o>","better":"<b>","why":"<w>"}],"vocabulary":["<v1>","<v2>"],"xpEarned":<10-50>}`
-        }]
-      })
+      }]
     });
     
     const data = await res.json();
@@ -719,21 +743,30 @@ Respond with exact structure: {"score":<0-100>,"scoreLabel":"<Label>","summary":
     const oldLevel = getLevelInfo(state.xp).level;
     awardXP(result.xpEarned || 20);
     const newLevel = getLevelInfo(state.xp).level;
-    
     if (newLevel > oldLevel) fireParticles();
 
-    state.calls.unshift({
-      date: new Date().toISOString(),
-      wordCount: wordCount || 0,
-      ...result // Guardo el objeto de análisis COMPLETO (mejoras, vocabulario, etc.)
-    });
+    // Enrich the existing backup record (don't create a duplicate)
+    const pendingIdx = state.calls.findIndex(c => c._id === state._pendingCallId);
+    const enriched = {
+      date: pendingIdx >= 0 ? state.calls[pendingIdx].date : new Date().toISOString(),
+      wordCount: wordCount || (pendingIdx >= 0 ? state.calls[pendingIdx].wordCount : 0),
+      duration: pendingIdx >= 0 ? state.calls[pendingIdx].duration : secondsElapsed,
+      phrasesHit: phrasesHitThisCall,
+      pronunciationAlerts: state.currentCallAlerts || [],
+      ...result // Full AI result (score, summary, improvements, vocabulary, etc.)
+    };
+    if (pendingIdx >= 0) {
+      state.calls[pendingIdx] = enriched; // Update in place
+    } else {
+      state.calls.unshift(enriched); // Fallback: no backup found, insert new
+    }
+    state._pendingCallId = null;
     saveState();
 
     renderAnalysisModal(result);
   } catch (e) {
-    alert('Analysis failed: ' + e.message);
-    showToast('Analysis failed. Try again.');
-    console.error(e);
+    console.error('[Coach] Analysis failed:', e);
+    showToast('⚠️ Analysis failed — session already saved as backup.');
   }
 }
 
