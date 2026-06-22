@@ -12,11 +12,14 @@ const OLLAMA_PROXIES = [
 const OLLAMA_KEY   = 'a749df26093a49c892fece6c0cf7ab36.w1UdR9t19ujmPA2Cycz964Rk';
 const OLLAMA_MODEL = 'gemma3:12b';
 
+let lastWorkingProxyIndex = 0;
+
 async function fetchWithFallback(body) {
-  for (let i = 0; i < OLLAMA_PROXIES.length; i++) {
+  for (let offset = 0; offset < OLLAMA_PROXIES.length; offset++) {
+    let i = (lastWorkingProxyIndex + offset) % OLLAMA_PROXIES.length;
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000); // 20s timeout per proxy
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
       const res = await fetch(OLLAMA_PROXIES[i], {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + OLLAMA_KEY },
@@ -24,7 +27,10 @@ async function fetchWithFallback(body) {
         signal: controller.signal
       });
       clearTimeout(timeout);
-      if (res.ok) return res;
+      if (res.ok) {
+        lastWorkingProxyIndex = i; // Remember the working proxy
+        return res;
+      }
       console.warn(`[Coach] Proxy ${i+1} returned ${res.status}, trying next...`);
     } catch (e) {
       console.warn(`[Coach] Proxy ${i+1} failed:`, e.message);
@@ -747,7 +753,20 @@ Respond with exact structure: {"score":<0-100>,"scoreLabel":"<Label>","summary":
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (jsonMatch) raw = jsonMatch[0];
     
-    const result = JSON.parse(raw);
+    let result;
+    try {
+      result = JSON.parse(raw);
+    } catch (jsonErr) {
+      console.warn("JSON parse failed. Attempting sanitization...", jsonErr);
+      // Basic sanitization for common LLM JSON errors
+      let sanitized = raw.replace(/,\s*([}\]])/g, '$1'); // trailing commas
+      sanitized = sanitized.replace(/[\u0000-\u001F]+/g, " "); // control chars
+      try {
+        result = JSON.parse(sanitized);
+      } catch (e2) {
+        throw new Error("AI returned malformed JSON structure.");
+      }
+    }
 
     // Adaptive Learning: Save new vocabulary
     if (result.vocabulary && Array.isArray(result.vocabulary)) {
