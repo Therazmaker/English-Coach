@@ -9,13 +9,15 @@ const OLLAMA_KEY   = 'a749df26093a49c892fece6c0cf7ab36.w1UdR9t19ujmPA2Cycz964Rk'
 const OLLAMA_MODEL = 'gemma3:12b';
 
 const BASE_PHRASES = [
-  "How can I help you today",
-  "Let me check that for you",
-  "I apologize for the inconvenience",
-  "Your order will arrive shortly",
-  "Thank you for contacting Bershka",
-  "Can I have your order number",
-  "Is there anything else I can assist you with"
+  "I apologize for the delay with your order",
+  "You can either wait for it to arrive, or we can cancel it",
+  "I will send a return label to your email address",
+  "I am sorry to hear that the item arrived defective",
+  "Let me check the tracking status for you",
+  "We can offer a replacement or a full refund",
+  "You have 30 days from the shipping date to return it",
+  "Your refund will be processed within 15 days",
+  "Is there anything else I can assist you with today"
 ];
 
 // ── LEVELS & XP ───────────────────────────────────────────────
