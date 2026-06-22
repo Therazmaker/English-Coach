@@ -430,6 +430,7 @@ function setupSpeechRecognition() {
       elTranscript.scrollTop = elTranscript.scrollHeight;
 
       getQuickHint(finalTranscript, lineEl);
+      triggerSmartPrompter(finalTranscript);
     }
 
     if (interimTranscript) {
@@ -449,6 +450,67 @@ function setupSpeechRecognition() {
     if (e.error !== 'no-speech') showToast('Speech Error: ' + e.error);
   };
   recognition.onend = () => { if (isRecording) recognition.start(); };
+}
+
+// ── SMART PROMPTER ─────────────────────────────────────────────
+const elPrompter = $('smart-prompter');
+const elPrompterText = $('prompter-text');
+let prompterHideTimer = null;
+
+// Build a smart suggestion pool from past AI improvements
+function buildSuggestionPool() {
+  const pool = {};
+  // Base keyword triggers with Bershka tone
+  const BASE_TRIGGERS = [
+    { keywords: ['refund', 'money', 'return'], suggestion: 'I\'ll arrange a refund for you right away.' },
+    { keywords: ['order', 'parcel', 'package', 'delivery'], suggestion: 'I can look into your order status now.' },
+    { keywords: ['delay', 'late', 'wait'], suggestion: 'I\'m sorry for the inconvenience — let me check what\'s happening.' },
+    { keywords: ['size', 'exchange', 'change'], suggestion: 'I can help you exchange that for the right size.' },
+    { keywords: ['track', 'courier', 'shipped'], suggestion: 'Let me pull up the tracking information for you.' },
+    { keywords: ['cancel', 'cancellation'], suggestion: 'I\'ll cancel that order for you immediately.' },
+    { keywords: ['hello', 'hi', 'hey', 'good morning', 'good afternoon'], suggestion: 'Thank you for calling Bershka, how can I help you today?' },
+    { keywords: ['email', 'confirmation', 'receipt'], suggestion: 'I\'ll send you a confirmation email right now.' },
+    { keywords: ['discount', 'promo', 'code', 'voucher'], suggestion: 'I\'d be happy to look into any promotions for you.' },
+    { keywords: ['sorry', 'apolog', 'mistake'], suggestion: 'I completely understand, and I sincerely apologise for this.' },
+    { keywords: ['hold', 'minute', 'moment'], suggestion: 'Could you bear with me for just one moment?' },
+    { keywords: ['name', 'account', 'email'], suggestion: 'Could I take your full name and email address, please?' },
+  ];
+
+  // Inject learnings from past AI improvements
+  if (state.calls) {
+    state.calls.forEach(c => {
+      if (!c.improvements) return;
+      c.improvements.forEach(imp => {
+        if (!imp.original || !imp.better) return;
+        // Use words from the ORIGINAL (bad) phrase as keyword triggers
+        const keywords = imp.original.toLowerCase().replace(/[^a-z ]/g,'').split(' ').filter(w => w.length > 3);
+        if (keywords.length > 0) {
+          BASE_TRIGGERS.push({ keywords, suggestion: imp.better });
+        }
+      });
+    });
+  }
+  return BASE_TRIGGERS;
+}
+
+function triggerSmartPrompter(transcript) {
+  if (!elPrompter || !elPrompterText) return;
+  const lower = transcript.toLowerCase();
+  const pool = buildSuggestionPool();
+
+  for (const trigger of pool) {
+    const hit = trigger.keywords.some(kw => lower.includes(kw));
+    if (hit) {
+      if (prompterHideTimer) clearTimeout(prompterHideTimer);
+      elPrompterText.textContent = trigger.suggestion;
+      elPrompter.classList.remove('hidden');
+      // Auto-hide after 6 seconds
+      prompterHideTimer = setTimeout(() => {
+        elPrompter.classList.add('hidden');
+      }, 6000);
+      break; // Only show one suggestion at a time
+    }
+  }
 }
 
 async function getQuickHint(text, lineEl) {

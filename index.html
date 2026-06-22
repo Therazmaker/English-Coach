@@ -64,9 +64,13 @@
 
         <div class="panel-label">📞 CALL CENTER</div>
 
-        <!-- Waveform Visualizer -->
-        <div class="visualizer-container">
+        <!-- Waveform Visualizer & Prompter -->
+        <div class="visualizer-container" style="position:relative;">
           <canvas id="waveform"></canvas>
+          <div id="smart-prompter" class="smart-prompter hidden">
+            <div class="prompter-label">💡 SMART PROMPTER</div>
+            <div id="prompter-text" class="prompter-text">Suggestion goes here</div>
+          </div>
         </div>
 
         <!-- Live Call Stats -->
