@@ -980,17 +980,14 @@ function setupTrainingRoom() {
       elOutcome.textContent = '✨ Great pronunciation! No correction needed.';
       awardXP(5);
       showToast('+5 XP — Pronounced correctly!');
-    } else if (sim >= 0.45) {
-      // Different enough — auto-save rule
-      // Find the most different word chunk between heard and target
+    } else if (sim >= 0.15) {
+      // Different enough — auto-save rule (low threshold: always try to learn)
       const heardWords  = heardClean.split(' ').filter(w => w.length > 2);
       const targetWords = targetClean.split(' ').filter(w => w.length > 2);
-      // Find heard words NOT in target — those are the mishearings
       const misheard = heardWords.filter(w => !targetWords.some(tw => calculateSimilarity(w, tw) > 0.7));
       const ruleFrom = misheard.length > 0 ? misheard.join(' ') : heard;
 
       if (!state.sttRules) state.sttRules = [];
-      // Avoid duplicate rules
       const alreadyExists = state.sttRules.some(r => r.heard.toLowerCase() === ruleFrom.toLowerCase());
       if (!alreadyExists && ruleFrom.trim()) {
         state.sttRules.push({ heard: ruleFrom, meant: target });
@@ -1002,40 +999,66 @@ function setupTrainingRoom() {
         showToast(`🛠 Auto-rule saved! +10 XP`);
       }
       elOutcome.className = 'tr-outcome saved';
-      elOutcome.textContent = `🛠 Rule auto-saved: "${ruleFrom}" ➜ "${target}"`;
+      elOutcome.textContent = `🛠 Rule saved: "${ruleFrom}" ➜ "${target}"`;
     } else {
-      // Too different — probably noise
+      // Basically empty/noise — just encourage retry
       elOutcome.className = 'tr-outcome';
-      elOutcome.textContent = '⚠️ Too much noise. Try again in a quieter spot.';
       elOutcome.style.color = 'var(--text-dim)';
+      elOutcome.textContent = '⚠️ Could not detect speech clearly. Speak a bit louder.';
     }
   }
 
   function startTrainRecording() {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) { showToast('Speech recognition not supported.'); return; }
-    trainRec = new SpeechRec();
-    trainRec.lang = 'en-GB';
-    trainRec.continuous = false;
-    trainRec.interimResults = false;
-    trainRec.onresult = (e) => {
-      const heard = e.results[0][0].transcript.trim();
-      const target = phrases[currentIdx];
-      stopTrainRecording();
-      processTrainingResult(target, heard);
-    };
-    trainRec.onerror = (e) => {
-      stopTrainRecording();
-      showToast('Could not hear you. Try again.');
-    };
-    trainRec.onend = () => {
-      if (isTrainRecording) stopTrainRecording();
-    };
-    trainRec.start();
-    isTrainRecording = true;
+    
+    // 3-second countdown so user is ready
+    let countdown = 3;
+    elIcon.textContent = countdown;
+    elLabel.textContent = 'Get ready...';
     btnRecord.classList.add('recording');
-    elIcon.textContent = '⏹️';
-    elLabel.textContent = 'Recording...';
+    isTrainRecording = true;
+
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      if (countdown > 0) {
+        elIcon.textContent = countdown;
+      } else {
+        clearInterval(countdownInterval);
+        elIcon.textContent = '⏹️';
+        elLabel.textContent = 'Listening...';
+        // Start recording after countdown
+        trainRec = new SpeechRec();
+        trainRec.lang = 'en-GB';
+        trainRec.continuous = false;
+        trainRec.interimResults = false;
+        trainRec.maxAlternatives = 5; // Try multiple interpretations
+        trainRec.onresult = (e) => {
+          // Pick the alternative with the highest sim to target
+          const target = phrases[currentIdx];
+          const targetClean = target.toLowerCase().replace(/[.,!?]/g, '');
+          let bestHeard = e.results[0][0].transcript.trim();
+          let bestSim = calculateSimilarity(bestHeard.toLowerCase(), targetClean);
+          for (let j = 1; j < e.results[0].length; j++) {
+            const alt = e.results[0][j].transcript.trim();
+            const altSim = calculateSimilarity(alt.toLowerCase(), targetClean);
+            if (altSim > bestSim) { bestSim = altSim; bestHeard = alt; }
+          }
+          stopTrainRecording();
+          processTrainingResult(target, bestHeard);
+        };
+        trainRec.onerror = (e) => {
+          stopTrainRecording();
+          if (e.error === 'no-speech') {
+            showToast('Nothing detected. Speak a bit louder and try again.');
+          } else {
+            showToast('Mic error: ' + e.error + '. Try again.');
+          }
+        };
+        trainRec.onend = () => { if (isTrainRecording) stopTrainRecording(); };
+        try { trainRec.start(); } catch(e) { stopTrainRecording(); }
+      }
+    }, 1000);
   }
 
   function stopTrainRecording() {
