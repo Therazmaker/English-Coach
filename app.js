@@ -340,7 +340,8 @@ function setupSpeechRecognition() {
       if (state.sttRules && state.sttRules.length > 0) {
         state.sttRules.forEach(r => {
            if (!r.heard) return;
-           const regex = new RegExp(r.heard.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+           // Use word boundaries to avoid replacing partial words or recursive replacements
+           const regex = new RegExp('\\b' + r.heard.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
            finalTranscript = finalTranscript.replace(regex, r.meant);
         });
       }
@@ -985,7 +986,17 @@ function setupTrainingRoom() {
       const heardWords  = heardClean.split(' ').filter(w => w.length > 2);
       const targetWords = targetClean.split(' ').filter(w => w.length > 2);
       const misheard = heardWords.filter(w => !targetWords.some(tw => calculateSimilarity(w, tw) > 0.7));
-      const ruleFrom = misheard.length > 0 ? misheard.join(' ') : heard;
+      
+      if (misheard.length === 0) {
+        // The mic heard words that perfectly match the target, but the string is just shorter
+        // This means the user was cut off or didn't finish the phrase, not a pronunciation error!
+        elOutcome.className = 'tr-outcome';
+        elOutcome.style.color = 'var(--text-dim)';
+        elOutcome.textContent = '⚠️ Cut off early. Say the full phrase.';
+        return;
+      }
+
+      const ruleFrom = misheard.join(' ');
 
       if (!state.sttRules) state.sttRules = [];
       const alreadyExists = state.sttRules.some(r => r.heard.toLowerCase() === ruleFrom.toLowerCase());
